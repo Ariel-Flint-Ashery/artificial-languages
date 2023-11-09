@@ -4,6 +4,7 @@ Created on Sun Nov  5 15:20:24 2023
 
 @author: ariel
 """
+#%%
 import os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 os.chdir(dir_path)
@@ -15,6 +16,7 @@ from scipy.special import logsumexp
 import random
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+from itertools import product, permutations, combinations
 #%%
 def normalize_logprobs(logprobs):
     logtotal = logsumexp(logprobs) #calculates the summed log probabilities
@@ -51,6 +53,35 @@ def characterise_language(data):
                 
     return 3 #compositional
 
+def generate_language(vocabulary_size, word_size):
+    alphabet = list(map(chr, range(97, 123))) #default english alphabet
+    vocabulary = alphabet[:vocabulary_size]
+    signals =  ["".join(item) for item in
+     list(product(vocabulary, repeat=word_size))]
+    #note: there are as many meanings as signals to account for holistic languages
+    meaning_chr_set = [] #?
+    for pos in range(word_size):
+        meaning_chr_set.append(range(vocabulary_size) + pos*vocabulary_size)
+    meanings = [''.join(str(y) for y in x) for x in product(*meaning_chr_set)]
+
+    #generate all possible meaning, signal pairs
+    all_pairs = list(product(meanings, signals))
+    
+    #separate into meaning groupings
+    groupings = []
+    for meaning in meanings:
+        meaning_group = []
+        for pair in all_pairs:
+            if meaning in pair:
+                meaning_group.append(pair)
+        groupings.append(meaning_group)
+
+    #create all possible language forms (== number of meanings)
+    possible_languages = [list(item) for item in list(product(*groupings))]
+
+    return possible_languages
+    
+    
 #%% INITIALISE
 meanings = ['02', '03', '12', '13']
 signals = ['aa', 'ab', 'ba', 'bb']
@@ -67,6 +98,15 @@ for index, (first, second) in enumerate(zip(language_types, language_type)):
 #%%
 hspace, step = np.linspace(0,1, len(possible_languages), endpoint=False, retstep = True)
 hspace+=step*0.5
+
+def get_uniform_logprior():
+    prior = [0]*len(possible_languages)
+    for t in range(4):
+        type_prob = 0.25/language_type.count(t)
+        indices=np.where(np.array(language_type) == t)[0]
+        for index in indices:
+            prior[index]=type_prob
+    return log(prior)
 
 def calculate_logprior(alpha):
     logprior = []
@@ -97,8 +137,11 @@ def update_posterior(data,prior):
     new_posterior = normalize_logprobs([sum(i) for i in zip(*[sequence_likelihood,prior])])
     return new_posterior
  
-def sample(posterior):
-    selected_index = log_roulette_wheel(posterior)
+def sample(posterior, MAP = False):
+    if MAP==False:
+        selected_index = log_roulette_wheel(posterior)
+    else:
+        selected_index = np.argmax(np.exp(posterior))
     return possible_languages[selected_index]
 
 def loglearn(data, prior):
@@ -120,7 +163,7 @@ def produce(language):
     
     return (meaning, signal)
 
-def iterate(prior, bottleneck, generations):
+def iterate(prior, bottleneck, generations, MAP = False):
     initial_language = random.choice(possible_languages) #randomly select initial language
     data = [produce(initial_language) for i in range(bottleneck)]
     language_accumulator = []
@@ -128,7 +171,7 @@ def iterate(prior, bottleneck, generations):
     data_accumulator = []
     for generation in range(generations):
         posterior = update_posterior(data,prior)
-        language = sample(posterior)
+        language = sample(posterior, MAP = MAP)
         data = [produce(language) for i in range(bottleneck)]
         language_accumulator.append(language)
         posterior_accumulator.append(posterior)
@@ -164,10 +207,10 @@ def bias_prior(prior, bias):
             prior[index]=logsumexp([prior[index],log(bias[t])])
     return normalize_logprobs(prior)
 
-def iterate_population(prior, n_pop, bottleneck, generations):
+def iterate_population(prior, n_pop, bottleneck, generations, MAP = False):
     posterior_accumulator = []
     for agent in range(n_pop):
-        lang_type_agent, posterior_agent, _ = iterate(prior, bottleneck=bottleneck, generations=generations)
+        lang_type_agent, posterior_agent, _ = iterate(prior, bottleneck=bottleneck, generations=generations, MAP=MAP)
         _, posterior_type_evolution = iterate_stats(lang_type_agent, posterior_agent)
         posterior_accumulator.append(posterior_type_evolution)
     return posterior_accumulator
@@ -179,7 +222,8 @@ def analyse_population_type(posterior_accumulator):
 error_probability = 0.005
 bottleneck = 20
 generations = 100
-n_pop = 100   
+n_pop = 50
+MAP = False
 colors = ['r', 'g', 'blue', 'orange']
 labels = ['Degenerate', 'Holistic', 'Partially Degenerate', 'Compositional']
 #%% PREPARE PRIOR
@@ -187,13 +231,13 @@ prior = calculate_logprior(1)
 plt.plot(np.exp(prior))
 #%%
 prior_type = get_logprior_type_dist(prior)
-plt.bar(range(4), np.exp(prior_type))
+plt.bar(range(4), np.exp(prior_type), color = colors, tick_label = labels)
 #%%
-prior = bias_prior(prior, [0, 0.1, 0, 0.5])
+prior=bias_prior(prior, [0, 0.1, 0, 0.5])
 plt.plot(np.exp(prior))
 #%%
 prior_type = get_logprior_type_dist(prior)
-plt.bar(range(4), np.exp(prior_type))
+plt.bar(range(4), np.exp(prior_type), color = colors, tick_label = labels)
 # #%% BEGIN SIMULATIONS  ---SINGLE AGENT---
 # results = iterate(prior, bottleneck=5, generations=100)
 
@@ -208,32 +252,33 @@ plt.bar(range(4), np.exp(prior_type))
 # plt.show()
 
 #%% BEGIN SIMULATIONS ---POPULATION OF AGENTS---
-population_sim = iterate_population(prior, n_pop = n_pop, bottleneck = bottleneck, generations = generations)
+#population_sim = iterate_population(prior, n_pop = n_pop, bottleneck = bottleneck, generations = generations)
 #%%
-bottlerange = np.arange(5,300, 30)
+bottlerange = np.arange(5,300,50)
 #%%
 if np.sqrt(len(bottlerange))-round(np.sqrt(len(bottlerange))) < 0:
-    nrow = math.ceil(np.sqrt(bottlerange))
+    nrow = math.ceil(np.sqrt(len(bottlerange)))
     ncol = nrow
     #if np.sqrt(pop_count)-round(np.sqrt(pop_count)) >= 0:
 else:
-    nrow = math.floor(np.sqrt(bottlerange))
-    ncol = math.ceil(np.sqrt(bottlerange))
+    nrow = math.floor(np.sqrt(len(bottlerange)))
+    ncol = math.ceil(np.sqrt(len(bottlerange)))
     
 fig, axs = plt.subplots(nrow, ncol)
 axs = axs.flatten()
 proportion_accumulator = []
 for ax, bottle in tqdm(zip(axs,bottlerange)):
-    population_sim = iterate_population(prior, n_pop = n_pop, bottleneck = bottle, generations = generations)
+    population_sim = iterate_population(prior, n_pop = n_pop, bottleneck = bottle, generations = generations, MAP=MAP)
     proportions = analyse_population_type(population_sim)
     proportion_accumulator.append([proportions[t][-1] for t in range(4)])
     for t in range(4):
         ax.plot(range(generations), proportions[t], color = colors[t], label = labels[t])
         ax.set_xlabel('Generations')
         ax.set_ylabel('Proportion')
+        ax.set_title('b=%s' % (bottle))
 
 handles, labels = ax.get_legend_handles_labels()
-fig.legend(handles=handles,ncol=len(labels),loc="lower center", bbox_to_anchor=(0.5,-0.07), fontsize = 28)#, facecolor = background, edgecolor = background)
+fig.legend(handles=handles,ncol=len(labels),loc="lower center", bbox_to_anchor=(0.5,-0.07), fontsize = 10)#, facecolor = background, edgecolor = background)
 plt.tight_layout()
 plt.show()
 
@@ -244,3 +289,19 @@ plt.legend()
 plt.xlabel('Bottleneck Size')
 plt.ylabel('Final Proportion (%s gens.)' % (generations))
 plt.show()
+#%%
+fig, axs = plt.subplots(nrow, ncol)
+axs = axs.flatten()
+for i in range(len(bottlerange)):
+        axs[i].bar(range(4), proportion_accumulator[i], color=colors)
+        axs[i].set_ylabel('Proportion')
+        axs[i].set_xticklabels([])
+        axs[i].set_title('b=%s' % (bottlerange[i]))
+if len(axs)>len(bottlerange):
+    fig.delaxes(axs[-1])
+    
+handles, labels = ax.get_legend_handles_labels()
+fig.legend(handles=handles,ncol=len(labels),loc="lower center", bbox_to_anchor=(0.5,-0.07), fontsize = 10)#, facecolor = background, edgecolor = background)
+plt.tight_layout()
+plt.show()
+# %%
