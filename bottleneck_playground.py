@@ -61,7 +61,7 @@ def generate_language(vocabulary_size, word_size):
     #note: there are as many meanings as signals to account for holistic languages
     meaning_chr_set = [] #?
     for pos in range(word_size):
-        meaning_chr_set.append(range(vocabulary_size) + pos*vocabulary_size)
+        meaning_chr_set.append(list(np.array(range(vocabulary_size)) + pos*vocabulary_size))
     meanings = [''.join(str(y) for y in x) for x in product(*meaning_chr_set)]
 
     #generate all possible meaning, signal pairs
@@ -114,7 +114,7 @@ def calculate_logprior(alpha):
         logprior.append(beta.logpdf(h, alpha, alpha)) 
     return normalize_logprobs(logprior) 
 
-def loglikelihoods(data):
+def loglikelihoods(data, expressivity=0):
     #likelihood of generating a sequence of (m,s) pairs for each language.
 
     in_language = log(1 - error_probability)
@@ -125,15 +125,17 @@ def loglikelihoods(data):
         logprob = []
         for language in possible_languages:
             if d in language:
-                logprob.append(in_language+meaning_prob)
+                a=list(sum(language, ())).count(d[1])
+                express_term = (1/a)**expressivity
+                logprob.append(in_language+meaning_prob+express_term)
             else: 
                 logprob.append(out_of_language+meaning_prob)
         loglikelihoods.append(logprob)
     sequence_likelihood = [sum(i) for i in zip(*loglikelihoods)] #do I need to normalize here?
     return sequence_likelihood
 
-def update_posterior(data,prior):
-    sequence_likelihood = loglikelihoods(data)
+def update_posterior(data,prior, expressivity=0):
+    sequence_likelihood = loglikelihoods(data, expressivity=expressivity)
     new_posterior = normalize_logprobs([sum(i) for i in zip(*[sequence_likelihood,prior])])
     return new_posterior
  
@@ -163,14 +165,14 @@ def produce(language):
     
     return (meaning, signal)
 
-def iterate(prior, bottleneck, generations, MAP = False):
+def iterate(prior, bottleneck, generations, expressivity=0, MAP = False):
     initial_language = random.choice(possible_languages) #randomly select initial language
     data = [produce(initial_language) for i in range(bottleneck)]
     language_accumulator = []
     posterior_accumulator = []
     data_accumulator = []
     for generation in range(generations):
-        posterior = update_posterior(data,prior)
+        posterior = update_posterior(data,prior, expressivity=expressivity)
         language = sample(posterior, MAP = MAP)
         data = [produce(language) for i in range(bottleneck)]
         language_accumulator.append(language)
@@ -207,10 +209,10 @@ def bias_prior(prior, bias):
             prior[index]=logsumexp([prior[index],log(bias[t])])
     return normalize_logprobs(prior)
 
-def iterate_population(prior, n_pop, bottleneck, generations, MAP = False):
+def iterate_population(prior, n_pop, bottleneck, generations, expressivity=0, MAP = False):
     posterior_accumulator = []
     for agent in range(n_pop):
-        lang_type_agent, posterior_agent, _ = iterate(prior, bottleneck=bottleneck, generations=generations, MAP=MAP)
+        lang_type_agent, posterior_agent, _ = iterate(prior, bottleneck=bottleneck, generations=generations, expressivity=expressivity, MAP=MAP)
         _, posterior_type_evolution = iterate_stats(lang_type_agent, posterior_agent)
         posterior_accumulator.append(posterior_type_evolution)
     return posterior_accumulator
