@@ -11,13 +11,21 @@ os.chdir(dir_path)
 import numpy as np
 from scipy.stats import beta
 import math
-from math import log, log1p, exp
+from math import log, log2
 from scipy.special import logsumexp
 import random
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from itertools import product, permutations, combinations
+from functools import lru_cache
 #%%
+def normalize_probs(probs):
+    total = sum(probs) #calculates the summed probabilities
+    normedprobs = []
+    for p in probs:
+        normedprobs.append(p / total) 
+    return normedprobs
+
 def normalize_logprobs(logprobs):
     logtotal = logsumexp(logprobs) #calculates the summed log probabilities
     normedlogs = []
@@ -107,8 +115,24 @@ def get_uniform_logprior():
         for index in indices:
             prior[index]=type_prob
     return log(prior)
+@lru_cache
+def code_length(signals):
+    code_length = 0
+    for s in signals:
+        code_length -= log2(signals.count(s)/len(signals))
+    return code_length
 
-def calculate_logprior(alpha):
+def non_normed_prior(language):
+    signals = ''.join([s for _, s in language])
+    return 2 ** -code_length(signals)
+
+def get_compressible_prior():
+    priors = [non_normed_prior(language) for language in possible_languages]
+    priors = normalize_probs(priors)
+    priors = [log(prior) for prior in priors]
+    return priors
+
+def get_beta_logprior(alpha):
     logprior = []
     for h in hspace:
         logprior.append(beta.logpdf(h, alpha, alpha)) 
@@ -119,17 +143,17 @@ def loglikelihoods(data, expressivity=0):
 
     in_language = log(1 - error_probability)
     out_of_language = log(error_probability / (len(signals) - 1))
-    meaning_prob = log(1/len(meanings)) #probability of generating a given meaning. is this necessary?
+    #meaning_prob = log(1/len(meanings)) #probability of generating a given meaning. is this necessary?
     loglikelihoods = []
     for d in data:
         logprob = []
         for language in possible_languages:
             if d in language:
                 a=list(sum(language, ())).count(d[1])
-                express_term = (1/a)**expressivity
-                logprob.append(in_language+meaning_prob+express_term)
+                express_term = log((1/a)**expressivity)
+                logprob.append(in_language+express_term) #+meaning_prob)
             else: 
-                logprob.append(out_of_language+meaning_prob)
+                logprob.append(out_of_language) #+meaning_prob)
         loglikelihoods.append(logprob)
     sequence_likelihood = [sum(i) for i in zip(*loglikelihoods)] #do I need to normalize here?
     return sequence_likelihood
@@ -229,7 +253,7 @@ MAP = False
 colors = ['r', 'g', 'blue', 'orange']
 labels = ['Degenerate', 'Holistic', 'Partially Degenerate', 'Compositional']
 #%% PREPARE PRIOR
-prior = calculate_logprior(1)
+prior = get_beta_logprior(1)
 plt.plot(np.exp(prior))
 #%%
 prior_type = get_logprior_type_dist(prior)
