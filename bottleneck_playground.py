@@ -3,6 +3,8 @@
 Created on Sun Nov  5 15:20:24 2023
 
 @author: ariel
+
+This is a playground for testing the effect of the size of the learning bottleneck on agents who learn from a sequence produced by a single ancestor, speaking a single language. The learner observes the entire sequence.
 """
 #%%
 import os
@@ -18,6 +20,8 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from itertools import product, permutations, combinations
 from functools import lru_cache
+import multiprocessing
+import time
 #%%
 def normalize_probs(probs):
     total = sum(probs) #calculates the summed probabilities
@@ -114,7 +118,24 @@ def get_uniform_logprior():
         indices=np.where(np.array(language_type) == t)[0]
         for index in indices:
             prior[index]=type_prob
-    return log(prior)
+    return np.log(prior).tolist()
+
+def get_logprior_type_dist(prior):
+    prior_type = []
+    for t in range(4):
+        indices = np.where(np.array(language_type) == t)[0]
+        prior_type.append(logsumexp([prior[index] for index in indices]))
+    return prior_type
+        
+def bias_prior(prior, bias):
+    for t in range(4):
+        if bias[t] <= 0:
+            continue
+        indices = np.where(np.array(language_type) == t)[0]
+        for index in indices:
+            prior[index]=logsumexp([prior[index],log(bias[t])])
+    return normalize_logprobs(prior)
+
 @lru_cache
 def code_length(signals):
     code_length = 0
@@ -138,29 +159,36 @@ def get_beta_logprior(alpha):
         logprior.append(beta.logpdf(h, alpha, alpha)) 
     return normalize_logprobs(logprior) 
 
-def loglikelihoods(data, expressivity=0):
+def loglikelihoods(data, posterior):
     #likelihood of generating a sequence of (m,s) pairs for each language.
 
     in_language = log(1 - error_probability)
     out_of_language = log(error_probability / (len(signals) - 1))
     #meaning_prob = log(1/len(meanings)) #probability of generating a given meaning. is this necessary?
-    loglikelihoods = []
+    # loglikelihoods = []
+    # for d in data:
+    #     logprob = []
+    #     for language in possible_languages:
+    #         if d in language:
+    #             # a=[s for _, s in language].count(d[1])
+    #             # express_term = log((1/a)**expressivity)
+    #             logprob.append(in_language)#+express_term) #+meaning_prob)
+    #         else: 
+    #             logprob.append(out_of_language) #+meaning_prob)
+    #     loglikelihoods.append(logprob)
+    # sequence_likelihood = [sum(i) for i in zip(*loglikelihoods)] #do I need to normalize here?
+    sequence_likelihood = np.zeros(len(possible_languages))
     for d in data:
-        logprob = []
-        for language in possible_languages:
-            if d in language:
-                a=list(sum(language, ())).count(d[1])
-                express_term = log((1/a)**expressivity)
-                logprob.append(in_language+express_term) #+meaning_prob)
-            else: 
-                logprob.append(out_of_language) #+meaning_prob)
-        loglikelihoods.append(logprob)
-    sequence_likelihood = [sum(i) for i in zip(*loglikelihoods)] #do I need to normalize here?
-    return sequence_likelihood
+        for i in range(len(possible_languages)):
+            if d in possible_languages[i]:
+                sequence_likelihood[i]+=in_language
+            else:
+                sequence_likelihood[i]+=out_of_language
+    return sequence_likelihood.tolist()
 
-def update_posterior(data,prior, expressivity=0):
-    sequence_likelihood = loglikelihoods(data, expressivity=expressivity)
-    new_posterior = normalize_logprobs([sum(i) for i in zip(*[sequence_likelihood,prior])])
+def update_posterior(data, posterior, prior):
+    sequence_likelihood = loglikelihoods(data, posterior)
+    new_posterior = normalize_logprobs([sum(i) for i in zip(*[sequence_likelihood, prior])]) #here, we would swap 'prior' with a Dirichlet process prior
     return new_posterior
  
 def sample(posterior, MAP = False):
@@ -170,35 +198,70 @@ def sample(posterior, MAP = False):
         selected_index = np.argmax(np.exp(posterior))
     return possible_languages[selected_index]
 
-def loglearn(data, prior):
-    posterior = update_posterior(data, prior)
-    return sample(posterior)
+def produce(posterior, bottleneck,  expressivity=0, MAP = False, initial_language=False):
+    # randomly choose meaning to express
+    intended_meanings = random.choices(meanings, k=bottleneck)
 
-def produce(language):
-    meaning = random.choice(meanings)
-    for m, s in language:
-        if m == meaning:
-            signal = s # find the signal that is mapped to the meaning 
-  
-    if random.random() < error_probability: # add the occasional mistake
-        other_signals = []
-        for other_signal in signals:
-            if other_signal != signal:
-                other_signals.append(other_signal) # make a list of all the "wrong" signals
-        return (meaning, random.choice(other_signals)) # pick one of them
+    # select speaker language
+
+    if initial_language==True:
+        # set initial language to a random holistic language
+        indices = np.where(np.array(language_type)==1)[0]
+        language = random.choice([possible_languages[index] for index in indices])
     
-    return (meaning, signal)
+    if expressivity==0:
+        language = sample(posterior, MAP=MAP)
+
+    else:
+        # weight each language by how easy it is to express a given meaning
+        new_posterior = posterior.copy()
+
+        meaning_dict = {m: intended_meanings.count(m) for m in set(intended_meanings)}
+
+        for meaning in meaning_dict.keys():
+            for signal in signals:
+                for i in range(len(possible_languages)):
+                    if (meaning, signal) in possible_languages[i]:
+                        a=list(sum(possible_languages[i], ())).count(signal) # add ambiguity term
+                        express_term = log((1/a)**expressivity)
+                        new_posterior[i]+=express_term * meaning_dict[meaning]
+        language = sample(normalize_logprobs(new_posterior), MAP = MAP)
+
+    # generate data
+
+    data=[]
+    for meaning in intended_meanings:
+        for m, s in language:
+            if m == meaning:
+                signal = s # find the signal that is mapped to the meaning 
+    
+        if random.random() < error_probability: # add the occasional mistake
+            other_signals = []
+            for other_signal in signals:
+                if other_signal != signal:
+                    other_signals.append(other_signal) # make a list of all the "wrong" signals
+            data.append((meaning, random.choice(other_signals))) # pick one of them
+        
+        data.append((meaning, signal))
+    
+    return data, language
 
 def iterate(prior, bottleneck, generations, expressivity=0, MAP = False):
-    initial_language = random.choice(possible_languages) #randomly select initial language
-    data = [produce(initial_language) for i in range(bottleneck)]
+    # initialise posterior
+    # posterior = np.zeros(len(possible_languages))
+    # posterior[indices] = 1/len(indices)
+    posterior = prior.copy()
+    
+    # initalise data collection
+    data = produce(posterior, bottleneck=bottleneck, expressivity=expressivity, MAP = MAP, initial_language=True)#[produce(initial_language) for i in range(bottleneck)]
     language_accumulator = []
     posterior_accumulator = []
     data_accumulator = []
+
+    # iterate across generations
     for generation in range(generations):
-        posterior = update_posterior(data,prior, expressivity=expressivity)
-        language = sample(posterior, MAP = MAP)
-        data = [produce(language) for i in range(bottleneck)]
+        posterior = update_posterior(data, posterior, prior)
+        data, language = produce(posterior, bottleneck=bottleneck, expressivity=expressivity, MAP = MAP) #[produce(language) for i in range(bottleneck)]
         language_accumulator.append(language)
         posterior_accumulator.append(posterior)
         data_accumulator.append(data)
@@ -216,23 +279,6 @@ def iterate_stats(language, posterior):
 
     return iterated_lang_type, posterior_type_evolution #avg_posterior
 
-
-def get_logprior_type_dist(prior):
-    prior_type = []
-    for t in range(4):
-        indices = np.where(np.array(language_type) == t)[0]
-        prior_type.append(logsumexp([prior[index] for index in indices]))
-    return prior_type
-        
-def bias_prior(prior, bias):
-    for t in range(4):
-        if bias[t] <= 0:
-            continue
-        indices = np.where(np.array(language_type) == t)[0]
-        for index in indices:
-            prior[index]=logsumexp([prior[index],log(bias[t])])
-    return normalize_logprobs(prior)
-
 def iterate_population(prior, n_pop, bottleneck, generations, expressivity=0, MAP = False):
     posterior_accumulator = []
     for agent in range(n_pop):
@@ -245,43 +291,47 @@ def analyse_population_type(posterior_accumulator):
     proportions =[np.mean(np.exp([agent[t] for agent in posterior_accumulator]), axis=0) for t in range(4)]
     return proportions
 #%% CONSTANTS
-error_probability = 0.005
-bottleneck = 20
-generations = 100
+error_probability = 0.05
+#bottleneck = 20
+bottlerange = np.arange(5,500,25)
+generations = 500
 n_pop = 50
+expressivity = 0 #>=0 The higher it is, the more expressive the langauge
 MAP = False
 colors = ['r', 'g', 'blue', 'orange']
 labels = ['Degenerate', 'Holistic', 'Partially Degenerate', 'Compositional']
-#%% PREPARE PRIOR
+#%% PREPARE BETA PRIOR
 prior = get_beta_logprior(1)
 plt.plot(np.exp(prior))
-#%%
+
 prior_type = get_logprior_type_dist(prior)
 plt.bar(range(4), np.exp(prior_type), color = colors, tick_label = labels)
-#%%
+#%% PREPARE COMPRESSIBLE PRIOR
+prior = get_compressible_prior()
+plt.plot(np.exp(prior))
+plt.show()
+
+prior_type = get_logprior_type_dist(prior)
+plt.bar(range(4), np.exp(prior_type), color = colors, tick_label = labels)
+plt.show()
+#%% PREPARE UNIFORM PRIOR
+prior = get_uniform_logprior()
+plt.plot(np.exp(prior))
+plt.show()
+
+prior_type = get_logprior_type_dist(prior)
+plt.bar(range(4), np.exp(prior_type), color = colors, tick_label = labels)
+plt.show()
+#%% PREPARE MANUAL BIASED PRIOR --make sure to initalise prior first
 prior=bias_prior(prior, [0, 0.1, 0, 0.5])
 plt.plot(np.exp(prior))
-#%%
+plt.show()
+
 prior_type = get_logprior_type_dist(prior)
 plt.bar(range(4), np.exp(prior_type), color = colors, tick_label = labels)
-# #%% BEGIN SIMULATIONS  ---SINGLE AGENT---
-# results = iterate(prior, bottleneck=5, generations=100)
-
-# #%%
-# stats = iterate_stats(results[0], results[1])
-# for i in range(4):  
-#     plt.plot(range(generations), np.exp(stats[1][i]), color = colors[i], label = 'Type %s'% (i))
-
-# plt.legend()
-# plt.xlabel('Generation')
-# plt.ylabel('Posterior probability')
-# plt.show()
+plt.show()
 
 #%% BEGIN SIMULATIONS ---POPULATION OF AGENTS---
-#population_sim = iterate_population(prior, n_pop = n_pop, bottleneck = bottleneck, generations = generations)
-#%%
-bottlerange = np.arange(5,300,50)
-#%%
 if np.sqrt(len(bottlerange))-round(np.sqrt(len(bottlerange))) < 0:
     nrow = math.ceil(np.sqrt(len(bottlerange)))
     ncol = nrow
@@ -294,7 +344,7 @@ fig, axs = plt.subplots(nrow, ncol)
 axs = axs.flatten()
 proportion_accumulator = []
 for ax, bottle in tqdm(zip(axs,bottlerange)):
-    population_sim = iterate_population(prior, n_pop = n_pop, bottleneck = bottle, generations = generations, MAP=MAP)
+    population_sim = iterate_population(prior, n_pop = n_pop, bottleneck = bottle, generations = generations, expressivity = expressivity, MAP=MAP)
     proportions = analyse_population_type(population_sim)
     proportion_accumulator.append([proportions[t][-1] for t in range(4)])
     for t in range(4):
@@ -302,13 +352,14 @@ for ax, bottle in tqdm(zip(axs,bottlerange)):
         ax.set_xlabel('Generations')
         ax.set_ylabel('Proportion')
         ax.set_title('b=%s' % (bottle))
-
+if len(axs)>len(bottlerange):
+    fig.delaxes(axs[-1])
 handles, labels = ax.get_legend_handles_labels()
 fig.legend(handles=handles,ncol=len(labels),loc="lower center", bbox_to_anchor=(0.5,-0.07), fontsize = 10)#, facecolor = background, edgecolor = background)
 plt.tight_layout()
 plt.show()
 
-#%%
+#%% DISPLAY EVOLUTION
 for t in range(4):
     plt.plot(bottlerange, [prop[t] for prop in proportion_accumulator], color = colors[t], label = labels[t])
 plt.legend()
@@ -330,4 +381,25 @@ handles, labels = ax.get_legend_handles_labels()
 fig.legend(handles=handles,ncol=len(labels),loc="lower center", bbox_to_anchor=(0.5,-0.07), fontsize = 10)#, facecolor = background, edgecolor = background)
 plt.tight_layout()
 plt.show()
+# %% PARALLEL SIMULATION
+def simulation(b):
+    lang_type_agent, posterior_agent, _ = iterate(prior, bottleneck=b, generations=generations, expressivity=expressivity, MAP=MAP)
+    _, posterior_type_evolution = iterate_stats(lang_type_agent, posterior_agent)
+    return posterior_type_evolution
+
+#%% parallelise
+start = time.perf_counter()
+if __name__ == "__main__":
+    print("""
+          -----------------------------
+          
+              STARTING MULTIPROCESS
+          
+          -----------------------------
+          """)
+    pool = multiprocessing.Pool(4) #multiprocessing.cpu_count() - 1) #uses all available processors
+    sim = pool.map(simulation, [(b) for b in [5,20,40] for _ in range(10)])
+    pool.close()
+    pool.join()
+
 # %%
