@@ -34,10 +34,13 @@ constants:
   - 455
   - 470
   - 485
-  error_probability: 0.05
+  epsilon: 0.05
   expressivity: 0
   generations: 250
   iterations: 50
+  signaller_type: oldest
+  pop_size: 20
+  initial_training_rounds: 20
 language:
   language_type:
   - 0

@@ -34,7 +34,7 @@ config = munchify(doc)
 #%% READ CONSTANTS FROM CONFIG
 possible_languages = config.language.possible_languages
 language_type = config.language.language_type
-error_probability = config.constants.error_probability
+epsilon = config.constants.epsilon
 signals = config.language.signals
 meanings = config.language.meanings
 # expressivity = config.constants.expressivity
@@ -43,8 +43,8 @@ meanings = config.language.meanings
 #%%
 def loglikelihoods(data):
     #likelihood of generating a sequence of (m,s) pairs for each language.
-    in_language = log(1 - error_probability)
-    out_of_language = log(error_probability / (len(signals) - 1))
+    in_language = log(1 - epsilon)
+    out_of_language = log(epsilon / (len(signals) - 1))
     # sequence_likelihood = np.zeros(len(possible_languages))
     # for d in data:
     #     for i in range(len(possible_languages)):
@@ -102,7 +102,7 @@ def produce(posterior, bottleneck,  expressivity=0, MAP = False, initial_languag
             for signal in signals:
                 for i in range(len(possible_languages)):
                     if [meaning, signal] in possible_languages[i]:
-                        a=list(sum(possible_languages[i], ())).count(signal) # add ambiguity term
+                        a=list(sum(possible_languages[i], [])).count(signal) # add ambiguity term
                         express_term = log((1/a)**expressivity)
                         new_posterior[i]+=express_term * meaning_dict[meaning]
         language = sample(normalize_logprobs(new_posterior), MAP = MAP)
@@ -115,7 +115,7 @@ def produce(posterior, bottleneck,  expressivity=0, MAP = False, initial_languag
             if m == meaning:
                 signal = s # find the signal that is mapped to the meaning 
     
-        if random.random() < error_probability: # add the occasional mistake
+        if random.random() < epsilon: # add the occasional mistake
             other_signals = []
             for other_signal in signals:
                 if other_signal != signal:

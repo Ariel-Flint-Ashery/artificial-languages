@@ -41,7 +41,7 @@ def set_variable(var_name, var, var_group=None):
 
 #%%
 meanings, signals, possible_languages = generate_language(vocabulary_size=config.language.vocabulary_size, word_size = config.language.word_size)
-language_type = language_type = [characterise_language(data) for data in possible_languages]
+language_type = [characterise_language(data) for data in possible_languages]
 
 #update config
 set_variable('meanings', meanings, 'language')

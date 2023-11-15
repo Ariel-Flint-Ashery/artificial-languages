@@ -23,6 +23,14 @@ def normalize_logprobs(logprobs):
         normedlogs.append(logp - logtotal) #normalise - subtracting in the log domain equivalent to divising in the normal domain
     return normedlogs
 
+def roulette_wheel(normedprobs):
+    r=random.random() #generate a random number between 0 and 1
+    accumulator = normedprobs[0]
+    for i in range(len(normedprobs)):
+        if r < accumulator:
+            return i
+        accumulator = accumulator + normedprobs[i + 1]
+        
 def log_roulette_wheel(normedlogs):
     r=log(random.random()) #generate a random number in [0,1), then convert to log
     accumulator = normedlogs[0]

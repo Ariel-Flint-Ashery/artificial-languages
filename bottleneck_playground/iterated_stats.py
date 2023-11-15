@@ -34,7 +34,7 @@ def file_id(name, pkl = True, directory = None):
 #%% READ CONSTANTS FROM CONFIG
 possible_languages = config.language.possible_languages
 language_type = config.language.language_type
-error_probability = config.constants.error_probability
+epsilon = config.constants.epsilon
 signals = config.language.signals
 meanings = config.language.meanings
 expressivity = config.constants.expressivity
