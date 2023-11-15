@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """
+LEGACY CODE!!
+
 Created on Sun Nov  5 15:20:24 2023
 
 @author: ariel
@@ -195,7 +197,9 @@ def sample(posterior, MAP = False):
     if MAP==False:
         selected_index = log_roulette_wheel(posterior)
     else:
-        selected_index = np.argmax(np.exp(posterior))
+        probs = np.exp(posterior)
+        max_signal_prob = max(probs)
+        selected_index = random.choice([i for i, v in enumerate(probs.tolist()) if v == max_signal_prob])
     return possible_languages[selected_index]
 
 def produce(posterior, bottleneck,  expressivity=0, MAP = False, initial_language=False):
@@ -212,7 +216,7 @@ def produce(posterior, bottleneck,  expressivity=0, MAP = False, initial_languag
     if expressivity==0:
         language = sample(posterior, MAP=MAP)
 
-    else:
+    if expressivity != 0:
         # weight each language by how easy it is to express a given meaning
         new_posterior = posterior.copy()
 
@@ -293,9 +297,9 @@ def analyse_population_type(posterior_accumulator):
 #%% CONSTANTS
 error_probability = 0.05
 #bottleneck = 20
-bottlerange = np.arange(5,500,25)
-generations = 500
-n_pop = 50
+bottlerange = np.arange(5,300,25)
+generations = 100
+n_pop = 20
 expressivity = 0 #>=0 The higher it is, the more expressive the langauge
 MAP = False
 colors = ['r', 'g', 'blue', 'orange']
@@ -388,7 +392,7 @@ def simulation(b):
     return posterior_type_evolution
 
 #%% parallelise
-start = time.perf_counter()
+#start = time.perf_counter()
 if __name__ == "__main__":
     print("""
           -----------------------------
@@ -398,8 +402,16 @@ if __name__ == "__main__":
           -----------------------------
           """)
     pool = multiprocessing.Pool(4) #multiprocessing.cpu_count() - 1) #uses all available processors
-    sim = pool.map(simulation, [(b) for b in [5,20,40] for _ in range(10)])
+    sim = pool.map(simulation, [(b) for b in [5] for _ in range(2)])
     pool.close()
     pool.join()
 
+# %%
+import yaml
+from munch import munchify
+#%%
+with open("bottleneck_playground/config.yml", "r") as f:
+    config = yaml.safe_load(f)
+# %%
+mymunch = munchify(config)
 # %%
