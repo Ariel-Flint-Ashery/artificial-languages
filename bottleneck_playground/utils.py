@@ -1,13 +1,12 @@
 import os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 os.chdir(dir_path)
-from scipy.stats import beta
 import numpy as np
 from math import log
 from scipy.special import logsumexp
 import random
-from itertools import product, permutations, combinations
-from functools import lru_cache
+from itertools import product
+from string import ascii_lowercase as alphabet
 #%%
 def normalize_probs(probs):
     total = sum(probs) #calculates the summed probabilities
@@ -40,7 +39,7 @@ def log_roulette_wheel(normedlogs):
         accumulator = logsumexp([accumulator, normedlogs[i + 1]])
         
 def characterise_language(data):
-    # text is a list of (signal,meaning) pairs.
+    # text is a list of (meaning, signal) pairs.
     #check for degenerate language
     if len(set([pair[1] for pair in data]))==1:
         return 0
@@ -53,15 +52,15 @@ def characterise_language(data):
 
     for i in range(len(data)-1):
         pair = data[i]
-        sig_match = [x for j in range(len(pair[0])) for x in data[i+1:] if x[0][j]==pair[0][j]]
-        mean_match = [x for j in range(len(pair[1])) for x in sig_match if x[1][j]==pair[1][j]]
-        if len(mean_match)==0:
+        mean_match = [x for j in range(len(pair[0])) for x in data[i+1:] if x[0][j]==pair[0][j]]
+        sig_match = [x for j in range(len(pair[1])) for x in mean_match if x[1][j]==pair[1][j]]
+        if len(sig_match)==0:
             return 1 #holistic
                 
     return 3 #compositional
 
 def generate_language(vocabulary_size, word_size):
-    alphabet = list(map(chr, range(97, 123))) #default english alphabet
+    #alphabet = list(map(chr, range(97, 123))) #default english alphabet
     vocabulary = alphabet[:vocabulary_size]
     signals =  ["".join(item) for item in
      list(product(vocabulary, repeat=word_size))]
@@ -87,3 +86,13 @@ def generate_language(vocabulary_size, word_size):
     possible_languages = [list(item) for item in list(product(*groupings))]
 
     return meanings, signals, possible_languages
+
+def count_ambiguous_languages(possible_languages, signals):
+    ambiguous_languages = []
+    count = 0
+    for language in possible_languages:
+        if len(set([s for _,s in language])) < len(signals):
+            count+=1
+            ambiguous_languages.append(language)
+
+    return count

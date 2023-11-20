@@ -29,7 +29,7 @@ def file_id(name, pkl = True, directory = None):
         pkl = pkl
     __file_name = f'{name}'
     _file_name = str(__file_name).replace(' ', '-').replace(',', '').replace('[', '-').replace(']','-').replace('.','-')
-    file_name = os.path.join(directory, 'ILM_data_files/single_model_data', f'{_file_name}.pkl')
+    file_name = os.path.join(directory, 'ILM_data_files/single_rational_data', f'{_file_name}.pkl')
     return file_name
 #%% READ CONSTANTS FROM CONFIG
 possible_languages = config.language.possible_languages
@@ -52,38 +52,45 @@ except:
     raise ValueError('NO DATAFILE FOUND')
 #%%
 
-def get_stats(dataframe):
-    # Populations are infinitely large, organised into discrete generations, and each individual learns from a single model at the previous generation
-    # treat each simulation as an infinitely large population represented by the posterior distribution
-    # or weighted posterior distribution too?
+# def get_stats(dataframe):
+#     # Populations are infinitely large, organised into discrete generations, and each individual learns from a single model at the previous generation
+#     # treat each simulation as an infinitely large population represented by the posterior distribution
+#     # or weighted posterior distribution too?
 
-    #average posterior distribution in each generation across all iterations of the simulation
-    for b in dataframe.keys(): #key is bottleneck
-        posterior_type_evolution_accumulator = []
-        for iteration in dataframe[b]['posterior']:
-            posterior_type_evolution = []
-            for t in range(len(set(language_type))):
-                #find posterior type distribution  in each generation for a given iteration
-                indices = np.where(np.array(language_type) == t)[0]
-                posterior_type_evolution.append([logsumexp([gen_post[index] for index in indices]) for gen_post in iteration])
-            posterior_type_evolution_accumulator.append(posterior_type_evolution)
+#     #average posterior distribution in each generation across all iterations of the simulation
+#     for b in dataframe.keys(): #key is bottleneck
+#         posterior_type_evolution_accumulator = []
+#         for iteration in dataframe[b]['posterior']:
+#             posterior_type_evolution = []
+#             for t in range(len(set(language_type))):
+#                 #find posterior type distribution  in each generation for a given iteration
+#                 indices = np.where(np.array(language_type) == t)[0]
+#                 posterior_type_evolution.append([logsumexp([gen_post[index] for index in indices]) for gen_post in iteration])
+#             posterior_type_evolution_accumulator.append(posterior_type_evolution)
         
-        #find proportion evolution
-        dataframe[b]['average_posterior_evolution'] = [np.mean(np.exp([iteration[t] for iteration in posterior_type_evolution_accumulator]), axis=0) for t in range(len(set(language_type)))]
-        dataframe[b]['final_proportion'] = [dataframe[b]['average_posterior_evolution'][t][-1] for t in range(len(set(language_type)))]
+#         #find proportion evolution
+#         dataframe[b]['average_posterior_evolution'] = [np.mean(np.exp([iteration[t] for iteration in posterior_type_evolution_accumulator]), axis=0) for t in range(len(set(language_type)))]
+#         dataframe[b]['final_proportion'] = [dataframe[b]['average_posterior_evolution'][t][-1] for t in range(len(set(language_type)))]
 
+#     return dataframe
+
+def get_stats(dataframe):
+    for b in dataframe.keys():
+        dataframe[b]['average_proportion_evolution'] = np.mean(dataframe[b]['proportions'], axis=0)
+    
     return dataframe
 
 def plot_bottleneck_proportions(dataframe):
     for t in range(4):
-        plt.plot(bottlerange, [dataframe[b]['final_proportion'][t] for b in dataframe.keys()], color = config.plotting_params.colors[t], label = config.plotting_params.labels[t])
+        plt.plot(bottlerange, [dataframe[b]['average_proportion_evolution'][-1][t] for b in dataframe.keys()], color = config.plotting_params.colors[t], label = config.plotting_params.labels[t])
+        #plt.plot(bottlerange, [dataframe[b]['final_proportion'][t] for b in dataframe.keys()], color = config.plotting_params.colors[t], label = config.plotting_params.labels[t])
     plt.legend()
     plt.xlabel('Bottleneck Size')
     plt.ylabel('Final Proportion (%s gens.)' % (generations))
     plt.show()
 
 # %%
-stat_frame = get_stats(dataframe)
+dataframe = get_stats(dataframe)
 # %%
-plot_bottleneck_proportions(stat_frame)
+plot_bottleneck_proportions(dataframe)
 # %%

@@ -26,9 +26,12 @@ config = munchify(doc)
 #%% READ CONSTANTS FROM CONFIG
 possible_languages = config.language.possible_languages
 language_type = config.language.language_type
-epsilon = config.constants.epsilon
 signals = config.language.signals
 meanings = config.language.meanings
+epsilon = config.constants.epsilon
+generations = config.constants.generations
+expressivity = config.constants.expressivity
+MAP = config.constants.MAP
 signaller_type = config.constants.signaller_type
 pop_size = config.constants.pop_size
 initial_training_rounds = config.constants.initial_training_rounds
@@ -55,7 +58,7 @@ def update_posterior(posterior, meaning, signal):
 def sample(posterior): #sample language from posterior
     return possible_languages[log_roulette_wheel(posterior)]
 
-def signalling(posterior, meaning, expressivity=0, MAP = True):
+def signalling(posterior, meaning):
     signal_probs = []
     for signal in signals:
         probs = []
@@ -81,7 +84,7 @@ def new_population(prior):
         population.append(prior)
     return population    
 
-def population_communication(population, expressivity=0, MAP=True):
+def population_communication(population):
     learner_index = random.randrange(len(population))
     if signaller_type == 'random':
         signaller_index = random.choice(range(pop_size))
@@ -102,7 +105,7 @@ def language_stats(posteriors):
             stats[language_type[i]] += exp(p[i]) / len(posteriors)
     return stats
 
-def iterate(prior, bottleneck, generations, expressivity=0, MAP = True):
+def iterate(prior, bottleneck):
     indices = np.where(np.array(language_type)==1)[0]
     seed_languages = [possible_languages[index] for index in indices]
     results = []

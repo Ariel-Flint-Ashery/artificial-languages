@@ -2,7 +2,7 @@
 import os
 import numpy as np
 import module_single_language_rational as rm
-from module_prior import get_prior
+from module_prior import get_prior, plot_prior
 from multiprocessing import Pool, cpu_count
 import time
 import yaml
@@ -31,28 +31,38 @@ def file_id(name, pkl = True, directory = None):
         pkl = pkl
     __file_name = f'{name}'
     _file_name = str(__file_name).replace(' ', '-').replace(',', '').replace('[', '-').replace(']','-').replace('.','-')
-    file_name = os.path.join(directory, 'ILM_data_files/single_model_data', f'{_file_name}.pkl')
+    file_name = os.path.join(directory, 'ILM_data_files/single_rational_data', f'{_file_name}.pkl')
     return file_name
 
 #%% READ CONSTANTS FROM CONFIG
-possible_languages = config.language.possible_languages
-language_type = config.language.language_type
-error_probability = config.constants.error_probability
-signals = config.language.signals
-meanings = config.language.meanings
+generations = config.constants.generations
 expressivity = config.constants.expressivity
 MAP = config.constants.MAP
 bottlerange = config.constants.bottlerange
-generations = config.constants.generations
 iterations = config.constants.iterations
 prior_type = config.prior_constants.prior_type
+print("""
+      ===============================================
+      BEGIN SIMULATIONS WITH THE FOLLOWING CONSTANTS
+      ===============================================
+      -----------------------------------------------
+      MAP: %s
+      bottleneck range: %s - %s, %s steps
+      expressivity: %s
+      iterations: %s
+      generations: %s
+      prior_type: %s
+      -----------------------------------------------
+      """ % (MAP, bottlerange[0], bottlerange[-1], len(bottlerange), expressivity, iterations, generations, prior_type))
 fname = '%s_%s_%s_%s_%s' % (prior_type, expressivity, MAP, generations, iterations)
 #%% INITALISE PRIOR
 prior = get_prior()
+plot_prior(prior)
 #%% DEFINE GENERATION FUNCTION
 def simulation(b):
-    language_agent, posterior_agent, _ = rm.iterate(prior, bottleneck=b, generations=generations, expressivity=expressivity, MAP=MAP)
-    return  language_agent, posterior_agent
+    #language_agent, posterior_agent, _ = rm.iterate(prior, bottleneck=b)
+    result = rm.iterate(prior, bottleneck=b)
+    return result #language_agent, posterior_agent
 #%%
 start = time.perf_counter()
 sim = []
@@ -77,9 +87,10 @@ print('Time elapsed: %s'% (time.perf_counter()-start))
 dataframe = {b: {} for b in bottlerange}
 left=0
 for b in bottlerange:
-    raw = sim[left:left+iterations]
-    dataframe[b]['language_type'] = [lang for lang, _ in raw]
-    dataframe[b]['posterior'] = [post for _, post in raw]
+    #raw = sim[left:left+iterations]
+    #dataframe[b]['language_type'] = [lang for lang, _ in raw]
+    #dataframe[b]['posterior'] = [post for _, post in raw]
+    dataframe[b]['proportions'] = sim[left:left+iterations]
     left+=iterations
 
 # Save file

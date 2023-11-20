@@ -2,12 +2,14 @@
 # import os
 # dir_path = os.path.dirname(os.path.realpath(__file__))
 # os.chdir(dir_path)
+#%%
 from utils import normalize_logprobs, normalize_probs, characterise_language
 import numpy as np
 from scipy.stats import beta
 from math import log, log2
 from scipy.special import logsumexp
 from functools import lru_cache
+from string import ascii_uppercase as ALPHABET
 import matplotlib.pyplot as plt
 import yaml
 from munch import munchify
@@ -18,6 +20,7 @@ config = munchify(doc)
 #%%
 possible_languages = config.language.possible_languages
 language_type = config.language.language_type
+meaning_chr = list(set(''.join(config.language.meanings)))
 #%%
 def get_beta_logprior():
     alpha = config.prior_constants.alpha
@@ -58,18 +61,46 @@ def get_biased_prior(prior):
     return normalize_logprobs(prior)
 
 @lru_cache
-def code_length(signals):
+def code_length(encoding):
     code_length = 0
-    for s in signals:
-        code_length -= log2(signals.count(s)/len(signals))
+    for e in encoding:
+        code_length -= log2(encoding.count(e)/len(encoding))
     return code_length
 
-def non_normed_prior(language):
-    signals = ''.join([s for _, s in language])
-    return 2 ** -code_length(signals)
+def non_normed_prior(index, language):
+    #signals = ''.join([s for _, s in language])
+    #compositional languages
+    if language_type[index] == 3:
+        groups = ALPHABET[:config.language.word_size]
+        language_dict = {g: [] for g in groups}
+        for m in meaning_chr:
+            words_same_meaning = [word for word in language if m in word[0]]
+            signals = [word[1] for word in words_same_meaning]
+            for i in range(config.language.word_size):
+                signal_chr = [sig[i] for sig in signals]
+                if all(s==signal_chr[0] for s in signal_chr):
+                    language_dict[groups[i]].append(m+signal_chr[0])
+        
+        encoding = ['S'+''.join(language_dict.keys())]
+        for index in language_dict.keys():
+            for pair in language_dict[index]:
+                encoding.append(index+pair)
+        encoding = '.'.join(encoding)
+
+    else:
+        language_dict = {signal: [m for m,s in language if s==signal] for signal in set([s for _, s in language])}
+        encoding = []
+        for signal in language_dict.keys():
+            if len(language_dict[signal]) > 1:
+                encoding.append('S' + ','.join(language_dict[signal]) + signal)
+            else:
+                encoding.append('S' + language_dict[signal][-1] + signal)
+        encoding = '.'.join(encoding)
+
+    return 2 ** -code_length(encoding)
 
 def get_compressible_prior():
-    priors = [non_normed_prior(language) for language in possible_languages]
+    priors = [non_normed_prior(index, language) for index, language in enumerate(possible_languages)]
     priors = normalize_probs(priors)
     priors = [log(prior) for prior in priors]
     return priors
@@ -95,7 +126,7 @@ def get_prior(prior_type=config.prior_constants.prior_type):
 
 
 def plot_prior(prior, num_types=len(set(language_type)), colors = config.plotting_params.colors, labels = config.plotting_params.labels):
-    fig, (ax1, ax2) = plt.subplots(1,2)
+    fig, (ax1, ax2) = plt.subplots(2,1, figsize = (8,8))
     ax1.plot(np.exp(prior))
     ax1.set_xlabel('Language by index')
     ax1.set_ylabel('Probability')
@@ -103,7 +134,10 @@ def plot_prior(prior, num_types=len(set(language_type)), colors = config.plottin
     #language_type = [characterise_language(data) for data in possible_languages]
     prior_type = get_logprior_type_dist(prior)
     ax2.bar(range(num_types), np.exp(prior_type), color = colors, tick_label = labels)
-
-    plt.tight_layout()
+    ax2.set_ylabel('Probability')
+    ax2.set_xlabel('Language Type')
+    #plt.tight_layout()
     #plt.savefig(rf'figures/', dpi = 200)#, bbox_inches = 'tight', pad_inches = 0)
+    print(np.exp(prior_type))
     plt.show()
+# %%

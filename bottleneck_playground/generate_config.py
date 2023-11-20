@@ -49,6 +49,6 @@ set_variable('signals', signals, 'language')
 set_variable('language_type', language_type, 'language')
 set_variable('possible_languages', possible_languages, 'language')
 # %%
-bottlerange = np.arange(5,500,15).tolist()
+bottlerange = np.arange(1,300,2).tolist()
 set_variable('bottlerange', bottlerange, 'constants')
 # %%

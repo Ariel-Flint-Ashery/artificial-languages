@@ -14,17 +14,10 @@ This is a module containing functions for the iterated learning model involving 
 # dir_path = os.path.dirname(os.path.realpath(__file__))
 # os.chdir(dir_path)
 import numpy as np
-from scipy.stats import beta
 from utils import normalize_logprobs, log_roulette_wheel
-from math import log, log2
-from scipy.special import logsumexp
+from math import log, exp
+#from scipy.special import logsumexp
 import random
-import matplotlib.pyplot as plt
-from tqdm import tqdm
-from itertools import product, permutations, combinations
-from functools import lru_cache
-import multiprocessing
-import time
 import yaml
 from munch import munchify
 #%% INITALISE CONFIG
@@ -37,6 +30,9 @@ language_type = config.language.language_type
 epsilon = config.constants.epsilon
 signals = config.language.signals
 meanings = config.language.meanings
+generations = config.constants.generations
+expressivity = config.constants.expressivity
+MAP = config.constants.MAP
 # expressivity = config.constants.expressivity
 # MAP = config.constants.MAP
 # bottlerange = config.constants.bottlerange
@@ -78,7 +74,7 @@ def sample(posterior, MAP = False):
         selected_index = random.choice([i for i, v in enumerate(probs.tolist()) if v == max_signal_prob])
     return possible_languages[selected_index]
 
-def produce(posterior, bottleneck,  expressivity=0, MAP = False, initial_language=False):
+def produce(posterior, bottleneck, initial_language=False):
     # randomly choose meaning to express
     intended_meanings = random.choices(meanings, k=bottleneck)
 
@@ -126,25 +122,31 @@ def produce(posterior, bottleneck,  expressivity=0, MAP = False, initial_languag
     
     return data, language
 
-def iterate(prior, bottleneck, generations, expressivity=0, MAP = False):
+def language_stats(posteriors):
+    stats = [0., 0., 0., 0.] # degenerate, holistic, other, combinatorial
+    for p in posteriors:
+        for i in range(len(p)):
+            stats[language_type[i]] += exp(p[i]) / len(posteriors)
+    return stats
+
+def iterate(prior, bottleneck):
     # initialise posterior
-    # posterior = np.zeros(len(possible_languages))
-    # posterior[indices] = 1/len(indices)
     posterior = prior.copy()
     
     # initalise data collection
-    data, language = produce(posterior, bottleneck=bottleneck, expressivity=expressivity, MAP = MAP, initial_language=True)#[produce(initial_language) for i in range(bottleneck)]
-    language_accumulator = [language]
-    posterior_accumulator = [posterior]
-    data_accumulator = [data]
-
+    data, language = produce(posterior, bottleneck=bottleneck, initial_language=True)
+    #language_accumulator = [language]
+    #posterior_accumulator = [posterior]
+    #data_accumulator = [data]
+    results = []
     # iterate across generations
     for generation in range(generations):
         posterior = update_posterior(data, prior)
-        data, language = produce(posterior, bottleneck=bottleneck, expressivity=expressivity, MAP = MAP) #[produce(language) for i in range(bottleneck)]
-        language_accumulator.append(language)
-        posterior_accumulator.append(posterior)
-        data_accumulator.append(data)
+        data, language = produce(posterior, bottleneck=bottleneck) #[produce(language) for i in range(bottleneck)]
+        results.append(language_stats([posterior]))
+        #language_accumulator.append(language)
+        #posterior_accumulator.append(posterior)
+        #data_accumulator.append(data)
 
-    return language_accumulator, posterior_accumulator, data_accumulator
+    return results #language_accumulator, posterior_accumulator, data_accumulator
 # %%
