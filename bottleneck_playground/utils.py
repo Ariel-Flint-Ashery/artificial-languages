@@ -1,3 +1,4 @@
+#%%
 import os
 dir_path = os.path.dirname(os.path.realpath(__file__))
 os.chdir(dir_path)
@@ -96,3 +97,20 @@ def count_ambiguous_languages(possible_languages, signals):
             ambiguous_languages.append(language)
 
     return count
+
+def get_init_language(language, language_type, possible_languages):
+    probs = np.zeros(len(language_type)).tolist()
+    if type(language) == int:
+        indices = np.where(np.array(language_type)==language)[0]
+        for index in indices:
+            probs[index]=log(1/len(indices))
+        return probs
+            #return possible_languages[random.choice(indices)]#random.choice([possible_languages[index] for index in indices])
+    
+    for t in range(4):
+        indices = np.where(np.array(language_type) == t)[0]
+        for index in indices:
+            probs[index]=log(language[t]/len(indices))
+    
+    return probs #normalize_logprobs(probs)
+# %%

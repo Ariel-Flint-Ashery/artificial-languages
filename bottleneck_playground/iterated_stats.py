@@ -43,7 +43,11 @@ bottlerange = config.constants.bottlerange
 generations = config.constants.generations
 iterations = config.constants.iterations
 prior_type = config.prior_constants.prior_type
-fname = '%s_%s_%s_%s_%s' % (prior_type, expressivity, MAP, generations, iterations)
+model = config.model
+initial_language = config.constants.initial_language
+if type(initial_language) != int:
+    initial_language= '-'.join(str(x*100) for x in initial_language)
+fname = '_'.join(str(x) for x in (model, prior_type, expressivity, MAP, generations, iterations, initial_language))
 #%% LOAD DATAFILE
 #fname = ''
 try:
@@ -77,13 +81,13 @@ except:
 def get_stats(dataframe):
     for b in dataframe.keys():
         dataframe[b]['average_proportion_evolution'] = np.mean(dataframe[b]['proportions'], axis=0)
-    
+        dataframe[b]['std_proportion_evolution'] = np.std(dataframe[b]['proportions'], axis=0)
     return dataframe
 
 def plot_bottleneck_proportions(dataframe):
     for t in range(4):
-        plt.plot(bottlerange, [dataframe[b]['average_proportion_evolution'][-1][t] for b in dataframe.keys()], color = config.plotting_params.colors[t], label = config.plotting_params.labels[t])
-        #plt.plot(bottlerange, [dataframe[b]['final_proportion'][t] for b in dataframe.keys()], color = config.plotting_params.colors[t], label = config.plotting_params.labels[t])
+        #plt.plot(bottlerange, [dataframe[b]['average_proportion_evolution'][-1][t] for b in dataframe.keys()], color = config.plotting_params.colors[t])#, label = config.plotting_params.labels[t])
+        plt.errorbar(bottlerange, [dataframe[b]['average_proportion_evolution'][-1][t] for b in dataframe.keys()], yerr = [dataframe[b]['std_proportion_evolution'][-1][t] for b in dataframe.keys()], color = config.plotting_params.colors[t], label = config.plotting_params.labels[t])
     plt.legend()
     plt.xlabel('Bottleneck Size')
     plt.ylabel('Final Proportion (%s gens.)' % (generations))
