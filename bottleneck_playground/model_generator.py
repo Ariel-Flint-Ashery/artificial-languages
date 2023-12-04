@@ -3,7 +3,7 @@ import os
 import numpy as np
 #import module_one_pass as rm
 from module_prior import get_prior, plot_prior
-import multiprocessing
+#from multiprocessing import Lock, Process, Queue, current_process
 import time
 import yaml
 import pickle
@@ -77,15 +77,15 @@ plot_prior(prior)
 def simulation(b):
     result = ilm.iterate(prior, bottleneck=b)
     return result 
-def parallel_simulation(b_values):
-    num_processes = multiprocessing.cpu_count()-4  # Get the number of available CPU cores
-    pool = multiprocessing.Pool(processes=num_processes)
+# def parallel_simulation(b_values):
+#     num_processes = multiprocessing.cpu_count()-4  # Get the number of available CPU cores
+#     pool = multiprocessing.Pool(processes=num_processes)
 
-    results = pool.map(simulation, b_values)
-    pool.close()
-    pool.join()
+#     results = pool.map(simulation, b_values)
+#     pool.close()
+#     pool.join()
 
-    return results
+#     return results
 #%%
 start = time.perf_counter()
 simulation_results = []
@@ -119,7 +119,9 @@ for b in bottlerange:
     #raw = sim[left:left+iterations]
     #dataframe[b]['language_type'] = [lang for lang, _ in raw]
     #dataframe[b]['posterior'] = [post for _, post in raw]
-    dataframe[b]['proportions'] = simulation_results[left:left+iterations]
+    dataframe[b]['language'] = simulation_results[left:left+iterations][0]
+    dataframe[b]['signals_mean'] = simulation_results[left:left+iterations][1]
+    #dataframe[b]['signals_std'] = simulation_results[left:left+iterations][1][1]
     left+=iterations
 
 # Save file

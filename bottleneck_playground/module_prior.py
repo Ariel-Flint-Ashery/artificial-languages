@@ -19,8 +19,10 @@ with open("config.yaml", "r") as f:
 config = munchify(doc)
 #%%
 possible_languages = config.language.possible_languages
+#forms = config.language.forms
 language_type = config.language.language_type
 meaning_chr = list(set(''.join(config.language.meanings)))
+#language_count = len(forms[0])**len(forms)
 #%%
 def get_beta_logprior():
     alpha = config.prior_constants.alpha
@@ -38,7 +40,7 @@ def get_uniform_logprior():
         indices=np.where(np.array(language_type) == t)[0]
         for index in indices:
             prior[index]=type_prob
-    return np.log(prior).tolist()
+    return list(map(log, prior))
 
 def get_logprior_type_dist(prior):
     prior_type = []
@@ -82,9 +84,9 @@ def non_normed_prior(index, language):
                     language_dict[groups[i]].append(m+signal_chr[0])
         
         encoding = ['S'+''.join(language_dict.keys())]
-        for index in language_dict.keys():
-            for pair in language_dict[index]:
-                encoding.append(index+pair)
+        for key in language_dict.keys():
+            for pair in language_dict[key]:
+                encoding.append(key+pair)
         encoding = '.'.join(encoding)
 
     else:
@@ -100,9 +102,9 @@ def non_normed_prior(index, language):
     return 2 ** -code_length(encoding)
 
 def get_compressible_prior():
-    priors = [non_normed_prior(index, language) for index, language in enumerate(possible_languages)]
+    priors = [non_normed_prior(index, language) for index, language in enumerate(possible_languages)] #list(map(non_normed_prior, possible_languages))
     priors = normalize_probs(priors)
-    priors = [log(prior) for prior in priors]
+    priors = list(map(log, priors)) #[log(prior) for prior in priors]
     return priors
 
 def get_prior(prior_type=config.prior_constants.prior_type):
@@ -138,6 +140,6 @@ def plot_prior(prior, num_types=len(set(language_type)), colors = config.plottin
     ax2.set_xlabel('Language Type')
     #plt.tight_layout()
     #plt.savefig(rf'figures/', dpi = 200)#, bbox_inches = 'tight', pad_inches = 0)
-    print(np.exp(prior_type))
+    #print(np.exp(prior_type))
     plt.show()
 # %%

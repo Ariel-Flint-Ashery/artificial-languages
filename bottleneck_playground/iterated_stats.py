@@ -80,21 +80,54 @@ except:
 
 def get_stats(dataframe):
     for b in dataframe.keys():
-        dataframe[b]['average_proportion_evolution'] = np.mean(dataframe[b]['proportions'], axis=0)
-        dataframe[b]['std_proportion_evolution'] = np.std(dataframe[b]['proportions'], axis=0)
+        dataframe[b]['average_proportion_evolution'] = np.mean(dataframe[b]['language'], axis=0)
+        dataframe[b]['error_proportion_evolution'] = np.std(dataframe[b]['language'], axis=0)/np.sqrt(iterations)
+        dataframe[b]['average_signal_evolution'] = np.mean(dataframe[b]['signals_mean'], axis=0)
+        dataframe[b]['error_signal_evolution'] = np.std(dataframe[b]['signals_mean'], axis=0)/np.sqrt(iterations)
     return dataframe
 
-def plot_bottleneck_proportions(dataframe):
+def plot_proportions(dataframe):
     for t in range(4):
         #plt.plot(bottlerange, [dataframe[b]['average_proportion_evolution'][-1][t] for b in dataframe.keys()], color = config.plotting_params.colors[t])#, label = config.plotting_params.labels[t])
-        plt.errorbar(bottlerange, [dataframe[b]['average_proportion_evolution'][-1][t] for b in dataframe.keys()], yerr = [dataframe[b]['std_proportion_evolution'][-1][t] for b in dataframe.keys()], color = config.plotting_params.colors[t], label = config.plotting_params.labels[t])
+        plt.errorbar(bottlerange, [dataframe[b]['average_proportion_evolution'][-1][t] for b in dataframe.keys()],
+                        yerr = [dataframe[b]['error_proportion_evolution'][-1][t] for b in dataframe.keys()],
+                        color = config.plotting_params.colors[t], label = config.plotting_params.labels[t],
+                        fmt = '.',
+                        )
     plt.legend()
     plt.xlabel('Bottleneck Size')
     plt.ylabel('Final Proportion (%s gens.)' % (generations))
     plt.show()
 
+def plot_signals(dataframe):
+    for t in range(4):
+        plt.errorbar(bottlerange, [dataframe[b]['average_signal_evolution'][-1][t] for b in dataframe.keys()],
+                        yerr = [dataframe[b]['error_signal_evolution'][-1][t] for b in dataframe.keys()],
+                        color = config.plotting_params.colors[t], label = meanings[t],
+                        fmt = '.',
+                        )
+    plt.legend()
+    plt.xlabel('Bottleneck Size')
+    plt.ylabel('Final Signal Proportion (%s gens.)' % (generations))
+    plt.show()
+
+def plot_signal_evolution(dataframe, b):
+    for t in range(4):
+        plt.errorbar(range(iterations), [dataframe[b]['average_signal_evolution'][gen][t] for gen in range(iterations)],
+                        yerr = [dataframe[b]['error_signal_evolution'][gen][t] for gen in range(iterations)],
+                        color = config.plotting_params.colors[t], label = meanings[t],
+                        fmt = '.',
+                        )
+    plt.legend()
+    plt.xlabel('Bottleneck Size')
+    plt.ylabel('Signal Evoluation (bottleneck=%s)' % (b))
+    plt.show()
+
 # %%
 dataframe = get_stats(dataframe)
 # %%
-plot_bottleneck_proportions(dataframe)
+plot_proportions(dataframe)
+plot_signals(dataframe)
+#%%
+plot_signal_evolution(dataframe, b=50)
 # %%

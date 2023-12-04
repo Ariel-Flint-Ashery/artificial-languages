@@ -1,5 +1,5 @@
 constants:
-  MAP: false
+  MAP: False
   bottlerange:
   - 1
   - 2
@@ -104,11 +104,11 @@ constants:
   continual_learning: true
   degree: 4
   epsilon: 0.05
-  expressivity: 2
-  generations: 200
+  expressivity: 20
+  generations: 400
   initial_language: 1
   initial_population: false
-  iterations: 25
+  iterations: 100
   pop_size: 5
   signaller_type: oldest
   training_rounds: 20

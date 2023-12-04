@@ -31,14 +31,20 @@ def roulette_wheel(normedprobs):
             return i
         accumulator = accumulator + normedprobs[i + 1]
         
-def log_roulette_wheel(normedlogs):
+def log_roulette_wheel_old(normedlogs):
     r=log(random.random()) #generate a random number in [0,1), then convert to log
     accumulator = normedlogs[0]
     for i in range(len(normedlogs)):
         if r < accumulator:
             return i
         accumulator = logsumexp([accumulator, normedlogs[i + 1]])
-        
+
+def log_roulette_wheel(logprobs):
+ # Do a weighted choice of an item with the
+ # given log-probabilities, using the Gumbel max trick
+ # return np.argmax([logprobs[i]-log(-log(random.random())) for i in range(len(logprobs))])
+    return np.argmax(np.array(logprobs) + np.random.gumbel(size = len(logprobs)))
+
 def characterise_language(data):
     # text is a list of (meaning, signal) pairs.
     #check for degenerate language
@@ -75,18 +81,21 @@ def generate_language(vocabulary_size, word_size):
     all_pairs = list(product(meanings, signals))
     
     #separate into meaning groupings
-    groupings = []
+    forms = []
     for meaning in meanings:
         meaning_group = []
         for pair in all_pairs:
             if meaning in pair:
                 meaning_group.append(pair)
-        groupings.append(meaning_group)
+        forms.append(meaning_group)
 
-    #create all possible language forms (== number of meanings)
-    possible_languages = [list(item) for item in list(product(*groupings))]
+    #create all possible languages (== number of meanings)
+    possible_languages = [list(item) for item in list(product(*forms))]
 
-    return meanings, signals, possible_languages
+    return meanings, signals, possible_languages #forms
+
+def all_languages_generator(forms):
+    return product(*forms)
 
 def count_ambiguous_languages(possible_languages, signals):
     ambiguous_languages = []
@@ -98,7 +107,7 @@ def count_ambiguous_languages(possible_languages, signals):
 
     return count
 
-def get_init_language(language, language_type, possible_languages):
+def get_init_language(language, language_type):
     probs = np.zeros(len(language_type)).tolist()
     if type(language) == int:
         indices = np.where(np.array(language_type)==language)[0]
