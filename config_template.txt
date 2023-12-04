@@ -1,0 +1,24 @@
+constants:
+  error_probability: 0.05
+  MAP: False
+  expressivity: 0
+  bottlerange: []
+  iterations: 200
+  generations: 500
+
+language:
+  vocabulary_size: 2
+  word_size: 2
+  possible_languages: []
+  language_type: []
+  signals: []
+  meanings: []
+
+prior_constants:
+  prior_type: 'compressible'
+  bias: []
+  alpha: 1
+
+plotting_params:
+  colors: ['r', 'g', 'blue', 'orange']
+  labels: ['Degenerate', 'Holistic', 'Other', 'Compositional']
