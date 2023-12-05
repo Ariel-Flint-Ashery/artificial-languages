@@ -1,5 +1,5 @@
 constants:
-  MAP: False
+  MAP: false
   bottlerange:
   - 1
   - 2
@@ -105,11 +105,12 @@ constants:
   degree: 4
   epsilon: 0.05
   expressivity: 20
-  generations: 400
+  generations: 300
   initial_language: 1
   initial_population: false
-  iterations: 100
+  iterations: 10
   pop_size: 5
+  seed: 123
   signaller_type: oldest
   training_rounds: 20
 language:
@@ -1439,7 +1440,7 @@ language:
   - bb
   vocabulary_size: 2
   word_size: 2
-model: mixed_population
+model: one_pass
 plotting_params:
   colors:
   - r

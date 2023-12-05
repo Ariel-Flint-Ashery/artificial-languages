@@ -82,8 +82,8 @@ def get_stats(dataframe):
     for b in dataframe.keys():
         dataframe[b]['average_proportion_evolution'] = np.mean(dataframe[b]['language'], axis=0)
         dataframe[b]['error_proportion_evolution'] = np.std(dataframe[b]['language'], axis=0)/np.sqrt(iterations)
-        dataframe[b]['average_signal_evolution'] = np.mean(dataframe[b]['signals_mean'], axis=0)
-        dataframe[b]['error_signal_evolution'] = np.std(dataframe[b]['signals_mean'], axis=0)/np.sqrt(iterations)
+        dataframe[b]['average_signal_evolution'] = np.mean(dataframe[b]['signals'], axis=0)
+        dataframe[b]['error_signal_evolution'] = np.std(dataframe[b]['signals'], axis=0)/np.sqrt(iterations)
     return dataframe
 
 def plot_proportions(dataframe):
@@ -127,7 +127,7 @@ def plot_signal_evolution(dataframe, b):
 dataframe = get_stats(dataframe)
 # %%
 plot_proportions(dataframe)
-plot_signals(dataframe)
+#plot_signals(dataframe)
 #%%
 plot_signal_evolution(dataframe, b=50)
 # %%

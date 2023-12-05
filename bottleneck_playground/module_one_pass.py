@@ -25,6 +25,7 @@ with open("config.yaml", "r") as f:
     doc = yaml.safe_load(f)
 config = munchify(doc)
 #%% READ CONSTANTS FROM CONFIG
+random.seed(config.constants.seed)
 possible_languages = config.language.possible_languages
 language_type = config.language.language_type
 epsilon = config.constants.epsilon
@@ -80,7 +81,7 @@ def sample(posterior, MAP = False):
         selected_index = random.choice(np.where(np.array(posterior)==max(posterior))[0])#random.choice([i for i, v in enumerate(probs.tolist()) if v == max_signal_prob])
     return possible_languages[selected_index]
 
-def produce(posterior, bottleneck, language = None, signal_dict = None):#initial_language=False, initial_population=False):
+def produce(posterior, bottleneck, language = None, signal_dict = dict()):#initial_language=False, initial_population=False):
     # randomly choose meaning to express
     intended_meanings = random.choices(meanings, k=bottleneck)
 
@@ -91,6 +92,7 @@ def produce(posterior, bottleneck, language = None, signal_dict = None):#initial
         if expressivity==0:
             language = sample(posterior, MAP=MAP)
             signal_dict = get_signal_dict(posterior)
+            
         else: #if expressivity != 0:
             # weight each language by how easy it is to express a given meaning
             new_posterior = posterior.copy()
@@ -104,9 +106,9 @@ def produce(posterior, bottleneck, language = None, signal_dict = None):#initial
                             a=list(sum(possible_languages[i], [])).count(signal) # add ambiguity term
                             express_term = log((1/a)**expressivity)
                             new_posterior[i]+=express_term * meaning_dict[meaning]
-            new_posterior = normalize_logprobs(new_posterior)
-            language = sample(new_posterior, MAP = MAP) #normalise?
-            signal_dict = get_signal_dict(new_posterior)
+            #prob = normalize_logprobs(new_posterior)
+            language = sample(normalize_logprobs(new_posterior), MAP = MAP) #normalise?
+            signal_dict = get_signal_dict(normalize_logprobs(new_posterior))
 
     # generate data
 
@@ -165,7 +167,8 @@ def iterate(prior, bottleneck):
     #language_accumulator = [language]
     #posterior_accumulator = [posterior]
     #data_accumulator = [data]
-
+    print(data)
+    print(signal_dict)
     # iterate across generations
     for generation in range(generations):
         posterior = update_posterior(data, prior)

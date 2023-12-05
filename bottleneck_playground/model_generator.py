@@ -120,7 +120,7 @@ for b in bottlerange:
     #dataframe[b]['language_type'] = [lang for lang, _ in raw]
     #dataframe[b]['posterior'] = [post for _, post in raw]
     dataframe[b]['language'] = simulation_results[left:left+iterations][0]
-    dataframe[b]['signals_mean'] = simulation_results[left:left+iterations][1]
+    dataframe[b]['signals'] = simulation_results[left:left+iterations][1]
     #dataframe[b]['signals_std'] = simulation_results[left:left+iterations][1][1]
     left+=iterations
 
