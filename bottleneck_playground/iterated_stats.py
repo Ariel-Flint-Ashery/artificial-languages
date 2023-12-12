@@ -29,7 +29,7 @@ def file_id(name, pkl = True, directory = None):
         pkl = pkl
     __file_name = f'{name}'
     _file_name = str(__file_name).replace(' ', '-').replace(',', '').replace('[', '-').replace(']','-').replace('.','-')
-    file_name = os.path.join(directory, 'ILM_data_files/single_rational_data', f'{_file_name}.pkl')
+    file_name = os.path.join(directory, 'ILM_data_files', f'{_file_name}.pkl')
     return file_name
 #%% READ CONSTANTS FROM CONFIG
 possible_languages = config.language.possible_languages
@@ -82,8 +82,8 @@ def get_stats(dataframe):
     for b in dataframe.keys():
         dataframe[b]['average_proportion_evolution'] = np.mean(dataframe[b]['language'], axis=0)
         dataframe[b]['error_proportion_evolution'] = np.std(dataframe[b]['language'], axis=0)/np.sqrt(iterations)
-        dataframe[b]['average_signal_evolution'] = np.mean(dataframe[b]['signals'], axis=0)
-        dataframe[b]['error_signal_evolution'] = np.std(dataframe[b]['signals'], axis=0)/np.sqrt(iterations)
+        #dataframe[b]['average_signal_evolution'] = np.mean(dataframe[b]['signals'], axis=0)
+        #dataframe[b]['error_signal_evolution'] = np.std(dataframe[b]['signals'], axis=0)/np.sqrt(iterations)
     return dataframe
 
 def plot_proportions(dataframe):
@@ -129,5 +129,5 @@ dataframe = get_stats(dataframe)
 plot_proportions(dataframe)
 #plot_signals(dataframe)
 #%%
-plot_signal_evolution(dataframe, b=50)
+#plot_signal_evolution(dataframe, b=50)
 # %%

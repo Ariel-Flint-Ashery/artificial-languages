@@ -91,7 +91,7 @@ def produce(posterior, bottleneck, language = None, signal_dict = dict()):#initi
 
         if expressivity==0:
             language = sample(posterior, MAP=MAP)
-            signal_dict = get_signal_dict(posterior)
+            #signal_dict = get_signal_dict(posterior)
             
         else: #if expressivity != 0:
             # weight each language by how easy it is to express a given meaning
@@ -108,7 +108,7 @@ def produce(posterior, bottleneck, language = None, signal_dict = dict()):#initi
                             new_posterior[i]+=express_term * meaning_dict[meaning]
             #prob = normalize_logprobs(new_posterior)
             language = sample(normalize_logprobs(new_posterior), MAP = MAP) #normalise?
-            signal_dict = get_signal_dict(normalize_logprobs(new_posterior))
+            #signal_dict = get_signal_dict(normalize_logprobs(new_posterior))
 
     # generate data
 
@@ -126,7 +126,7 @@ def produce(posterior, bottleneck, language = None, signal_dict = dict()):#initi
             signal = random.choice(other_signals) # pick one of them        
         data.append([meaning, signal])
     
-    return data, signal_dict #, language
+    return data#, signal_dict #, language
 
 def language_stats(posteriors):
     stats = [0., 0., 0., 0.] # degenerate, holistic, other, combinatorial
@@ -161,24 +161,22 @@ def iterate(prior, bottleneck):
     # initialise posterior
     posterior = prior.copy()
     language_results = []
-    signal_results = []
+    #signal_results = []
     # initalise data collection
-    data, signal_dict = produce(posterior, bottleneck=bottleneck, language= possible_languages[log_roulette_wheel(get_init_language(initial_language, language_type))])#np.random.choice(possible_languages, p=get_init_language(initial_language, language_type)))
+    data = produce(posterior, bottleneck=bottleneck, language= possible_languages[log_roulette_wheel(get_init_language(initial_language, language_type))])#np.random.choice(possible_languages, p=get_init_language(initial_language, language_type)))
     #language_accumulator = [language]
     #posterior_accumulator = [posterior]
     #data_accumulator = [data]
-    print(data)
-    print(signal_dict)
     # iterate across generations
     for generation in range(generations):
         posterior = update_posterior(data, prior)
-        data, signal_dict = produce(posterior, bottleneck=bottleneck) #[produce(language) for i in range(bottleneck)]
+        data = produce(posterior, bottleneck=bottleneck) #[produce(language) for i in range(bottleneck)]
 
         #language_accumulator.append(language)
         #posterior_accumulator.append(posterior)
         #data_accumulator.append(data)
         language_results.append(language_stats([posterior]))
-        signal_results.append(signal_stats(signal_dict))
+        #signal_results.append(signal_stats(signal_dict))
 
-    return language_results, signal_results #language_accumulator, posterior_accumulator, data_accumulator
+    return language_results#, signal_results #language_accumulator, posterior_accumulator, data_accumulator
 # %%

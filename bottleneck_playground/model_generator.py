@@ -31,7 +31,7 @@ def file_id(name, pkl = True, directory = None):
         pkl = pkl
     __file_name = f'{name}'
     _file_name = str(__file_name).replace(' ', '-').replace(',', '').replace('[', '-').replace(']','-').replace('.','-')
-    file_name = os.path.join(directory, 'ILM_data_files/single_rational_data', f'{_file_name}.pkl')
+    file_name = os.path.join(directory, 'ILM_data_files', f'{_file_name}.pkl')
     return file_name
 
 #%% READ CONSTANTS FROM CONFIG
@@ -119,8 +119,8 @@ for b in bottlerange:
     #raw = sim[left:left+iterations]
     #dataframe[b]['language_type'] = [lang for lang, _ in raw]
     #dataframe[b]['posterior'] = [post for _, post in raw]
-    dataframe[b]['language'] = simulation_results[left:left+iterations][0]
-    dataframe[b]['signals'] = simulation_results[left:left+iterations][1]
+    dataframe[b]['language'] = simulation_results[left:left+iterations]#[0]
+    #dataframe[b]['signals'] = simulation_results[left:left+iterations][1]
     #dataframe[b]['signals_std'] = simulation_results[left:left+iterations][1][1]
     left+=iterations
 
