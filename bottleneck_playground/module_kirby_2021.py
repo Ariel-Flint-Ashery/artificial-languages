@@ -34,7 +34,7 @@ expressivity = config.constants.expressivity
 MAP = config.constants.MAP
 signaller_type = config.constants.signaller_type
 pop_size = config.constants.pop_size
-initial_training_rounds = config.constants.initial_training_rounds
+training_rounds = config.constants.training_rounds
 
 if signaller_type == 'oldest':
     signaller_age = pop_size -1
@@ -43,40 +43,42 @@ if signaller_type == 'learner':
     signaller_age = ceil(pop_size/2) - 1
 
 #%%
-def update_posterior(posterior, meaning, signal):
+def update_posterior(data, posterior): 
     in_language = log(1 - epsilon)
     out_of_language = log(epsilon / (len(signals) - 1))
-    new_posterior = []
-    for i in range(len(posterior)):
-        if [meaning, signal] in possible_languages[i]:
-            new_posterior.append(posterior[i] + in_language)
-        else:
-            new_posterior.append(posterior[i] + out_of_language)
+    new_posterior = posterior.copy()
+    for word in data:
+        for i in range(len(posterior)):
+            if word in possible_languages[i]:
+                new_posterior[i] += in_language
+            else:
+                new_posterior[i] += out_of_language
     return normalize_logprobs(new_posterior)
 
-
-def sample(posterior): #sample language from posterior
-    return possible_languages[log_roulette_wheel(posterior)]
-
-def signalling(posterior, meaning):
-    signal_probs = []
-    for signal in signals:
-        probs = []
-        for i in range(len(posterior)):
-            language = possible_languages[i]
-            if [meaning, signal] in language:
-                a = list(sum(possible_languages[i], [])).count(signal) #use square brackets here?
-                probs.append(log((1 / a) ** expressivity) + posterior[i])
-        signal_probs.append(logsumexp(probs))
-
+def sample(probs, MAP = True):
     if MAP == True:
-        #max_signal_prob = max(signal_probs)
-        #signal_index = random.choice([i for i, v in enumerate(signal_probs) if v == max_signal_prob])
-        signal_index = random.choice(np.where(np.array(signal_probs)==max(signal_probs))[0])
+        index = random.choice(np.where(np.array(probs)==max(probs))[0])
     else:
-        #signal_index = roulette_wheel(normalize_probs(signal_probs))
-        signal_index = np.random.choice(range(len(signal_probs)), p = normalize_probs(signal_probs))
-    return signals[signal_index]
+        index = log_roulette_wheel(probs)
+    return index
+
+def get_signal_dict(posterior, expressivity=0):
+    signal_dict = {m: {} for m in meanings}
+    for m in signal_dict.keys():
+        signal_probs = []
+        for signal in signals:
+            probs = []
+            for i in range(len(posterior)):
+                language = possible_languages[i]
+                if [m, signal] in language:
+                    if expressivity == 0:
+                        probs.append(posterior[i])
+                    else:
+                        a = list(sum(possible_languages[i], [])).count(signal)
+                        probs.append(log((1 / a) ** expressivity) + posterior[i])
+            signal_probs.append(logsumexp(probs))
+        signal_dict[m] = signal_probs
+    return signal_dict
 
 def new_population(prior):
     population = []
@@ -84,43 +86,57 @@ def new_population(prior):
         population.append(prior)
     return population    
 
-def population_communication(population):
-    learner_index = random.randrange(len(population))
+def population_communication(population, bottleneck, expressivity=0, MAP = True):
+
+    #choose signaller
     if signaller_type == 'random':
-        signaller_index = random.choice(range(pop_size))
+        signaller_index = random.choice(list(range(pop_size)))
     else:
-        signaller_index = signaller_age - 1
+        signaller_index = signaller_age
+
+    #remove signaller from potential learner pool. We want the learner to be a different group member.
+    learners = list(range(pop_size))
+    learners.remove(signaller_index)
+
+    #obtain signal probabilities for each meaning for signaller
+    signal_dict = get_signal_dict(population[signaller_index], expressivity)
     
-    meaning = random.choice(meanings)
-    signal = signalling(population[signaller_index], meaning, expressivity=expressivity, MAP=MAP)
-    if random.random() < epsilon:
-        other_signals = [s for s in signals if s != signal]
-        signal = random.choice(other_signals)
-    population[learner_index] = update_posterior(population[learner_index], meaning, signal)
+    meanings_to_produce = random.choices(list(signal_dict.keys()), k=bottleneck)
+    
+    #communicate
+    for meaning in meanings_to_produce:
+        learner_index = random.choice(learners)
+        signal = signals[sample(signal_dict[meaning], MAP = MAP)]
+        if random.random() < epsilon:
+            other_signals = [s for s in signals if s != signal]
+            signal = random.choice(other_signals)
+        population[learner_index] = update_posterior([[meaning, signal]], population[learner_index])
 
 def language_stats(posteriors):
     stats = [0., 0., 0., 0.] # degenerate, holistic, other, combinatorial
     for p in posteriors:
+        probs = np.exp(p)  / len(posteriors)
         for i in range(len(p)):
-            stats[language_type[i]] += exp(p[i]) / len(posteriors)
+            stats[language_type[i]] += probs[i]
     return stats
 
 def iterate(prior, bottleneck):
     indices = np.where(np.array(language_type)==1)[0]
     seed_languages = [possible_languages[index] for index in indices]
+    seed_language = seed_languages[0] #random.choice(seed_languages)
     results = []
     population = new_population(prior)
     for i in range(pop_size):
-        seed_language = random.choice(seed_languages)
-        for j in range(initial_training_rounds): # This just trains the initial population on the seed language
-            meaning, signal = random.choice(seed_language)
-            population[i] = update_posterior(population[i], meaning, signal)
-    results.append(language_stats(population))
+        #seed_language = random.choice(seed_languages)
+        for j in range(training_rounds): # This just trains the initial population on the seed language
+            word = random.choice(seed_language)
+            population[i] = update_posterior([word], population[i])
+    results.append(language_stats([population[-1]]))
 
     for i in range(generations):
-        for j in range(bottleneck):
-            population_communication(population, expressivity=expressivity, MAP=MAP)
+        population_communication(population, bottleneck, expressivity=expressivity, MAP=MAP)
         results.append(language_stats([population[-1]])) # We measure the stats just on the oldest learner
-        population = new_population(1) + population[:-1] # remove the oldest and add a newborn learner
+        population = [prior] + population[:-1] # remove the oldest and add a newborn learner
                        
     return results
+# %%

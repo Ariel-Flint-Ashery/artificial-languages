@@ -43,24 +43,25 @@ iterations = config.constants.iterations
 prior_type = config.prior_constants.prior_type
 initial_language = config.constants.initial_language
 model = config.model
+initial_language_name = initial_language
 if type(initial_language) != int:
-    initial_language= '-'.join(str(x*100) for x in initial_language)
-print("""
+    initial_language_name= '-'.join(str(int(x*100)) for x in initial_language)
+print(f"""
       ===============================================
       BEGIN SIMULATIONS WITH THE FOLLOWING PARAMETERS
       ===============================================
       -----------------------------------------------
-      Model: %s
-      MAP: %s
-      bottleneck range: %s - %s, %s steps
-      expressivity: %s
-      iterations: %s
-      generations: %s
-      prior type: %s
-      initial language composition: %s
+      Model: {model}
+      MAP: {MAP}
+      bottleneck range: {bottlerange[0]} - {bottlerange[-1]}, {len(bottlerange)} steps
+      expressivity: {expressivity}
+      iterations: {iterations}
+      generations: {generations}
+      prior type: {prior_type}
+      initial language composition: {initial_language_name}
       -----------------------------------------------
-      """ % (model, MAP, bottlerange[0], bottlerange[-1], len(bottlerange), expressivity, iterations, generations, prior_type, initial_language))
-fname = '_'.join(str(x) for x in (model, prior_type, expressivity, MAP, generations, iterations, initial_language))
+      """) 
+fname = '_'.join(str(x) for x in (model, prior_type, expressivity, MAP, generations, iterations, initial_language_name))
 #%% GET MODEL
 if model == 'one_pass':
     import module_one_pass as ilm

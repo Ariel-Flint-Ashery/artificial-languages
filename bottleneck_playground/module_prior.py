@@ -49,8 +49,7 @@ def get_logprior_type_dist(prior):
         prior_type.append(logsumexp([prior[index] for index in indices]))
     return prior_type
         
-def get_biased_prior(prior):
-    bias = config.prior_constants.bias
+def get_biased_prior(prior, bias = config.prior_constants.bias):
     if len(bias)<len(set(language_type)):
         return TypeError('config file missing bias initialisation')
     
@@ -107,6 +106,18 @@ def get_compressible_prior():
     priors = list(map(log, priors)) #[log(prior) for prior in priors]
     return priors
 
+def get_weak_prior(alpha = config.prior_constants.alpha):
+    prior = [0]*len(possible_languages)
+    for t in range(4):
+        if t == 3:
+            type_prob = alpha/language_type.count(t)
+        else:
+            type_prob = (1-alpha)/(len(language_type)-language_type.count(3))
+        indices=np.where(np.array(language_type) == t)[0]
+        for index in indices:
+            prior[index]=type_prob
+    return list(map(log, prior))
+
 def get_prior(prior_type=config.prior_constants.prior_type):
     #language_type = [characterise_language(data) for data in possible_languages]
 
@@ -125,13 +136,22 @@ def get_prior(prior_type=config.prior_constants.prior_type):
         # if bias == None:
         #     return TypeError('Please specify alpha parameter')
         return get_biased_prior(get_uniform_logprior())
+    
+    if prior_type == 'weak':
+        return get_weak_prior()
 
 
 def plot_prior(prior, num_types=len(set(language_type)), colors = config.plotting_params.colors, labels = config.plotting_params.labels):
     fig, (ax1, ax2) = plt.subplots(2,1, figsize = (8,8))
-    ax1.plot(np.exp(prior))
+    stem_colors = [0]*len(language_type)
+    for t in range(4):
+        indices = np.where(np.array(language_type)==t)[0]
+        for index in indices:
+            stem_colors[index]=colors[t]
+
+    ax1.bar(range(len(language_type)), np.sqrt(np.exp(prior)), color = stem_colors, width =0.5)
     ax1.set_xlabel('Language by index')
-    ax1.set_ylabel('Probability')
+    ax1.set_ylabel('Probability (square root trans.)')
 
     #language_type = [characterise_language(data) for data in possible_languages]
     prior_type = get_logprior_type_dist(prior)
