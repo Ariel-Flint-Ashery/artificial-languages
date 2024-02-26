@@ -34,7 +34,6 @@ meanings = config.language.meanings
 generations = config.constants.generations
 expressivity = config.constants.expressivity
 MAP = config.constants.MAP
-continual_learning = config.constants.continual_learning
 initial_language = config.constants.initial_language
 #%%
 def loglikelihoods(word, posterior):
@@ -52,9 +51,11 @@ def loglikelihoods(word, posterior):
     #     loglikelihoods.append(logprob)
     # sequence_likelihood = [sum(i) for i in zip(*loglikelihoods)] #do I need to normalize here?
     new_posterior = []
-    for i in range(len(posterior)):
-        if word in possible_languages[i]:
-            new_posterior.append(posterior[i] + in_language)
+    for i, language in enumerate(possible_languages):
+        if word in language:
+            a=list(sum(language, [])).count(word[1]) # add ambiguity term
+            express_term = log((1/a)**expressivity)
+            new_posterior.append(posterior[i] + express_term + in_language)
         else:
             new_posterior.append(posterior[i] + out_of_language)
     return new_posterior

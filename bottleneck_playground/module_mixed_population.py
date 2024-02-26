@@ -1,7 +1,7 @@
 """
 In this model, we assume that population are infinitely large and organised into discrete generations.
 In each generation, the new learners learn from data produced by the previous generation.
-Languages are chosen on word-by-word basis i.e. learners learn from multiple teachers
+Languages are chosen on word-by-word basis i.e. learners learn from multilingual teachers
 """
 #%%
 import numpy as np

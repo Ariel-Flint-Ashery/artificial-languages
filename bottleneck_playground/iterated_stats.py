@@ -7,6 +7,7 @@ import pickle
 import yaml
 from munch import munchify
 import matplotlib.pyplot as plt
+import math
 #%% INITALISE CONFIG
 with open("config.yaml", "r") as f:
     doc = yaml.safe_load(f)
@@ -118,16 +119,46 @@ def plot_signals(dataframe):
     plt.ylabel('Final Signal Proportion (%s gens.)' % (generations))
     plt.show()
 
-def plot_signal_evolution(dataframe, b):
-    for t in range(4):
-        plt.errorbar(range(iterations), [dataframe[b]['average_signal_evolution'][gen][t] for gen in range(iterations)],
-                        yerr = [dataframe[b]['error_signal_evolution'][gen][t] for gen in range(iterations)],
-                        color = config.plotting_params.colors[t], label = meanings[t],
-                        fmt = '.',
-                        )
-    plt.legend()
-    plt.xlabel('Bottleneck Size')
-    plt.ylabel('Signal Evolution (bottleneck=%s)' % (b))
+def plot_signal_evolution(dataframe, repeat=10):
+    bottles = sorted(set(list(dataframe.keys())[:30]))#+[b for b in dataframe.keys() if b % repeat==0]))
+    number_of_plots = len(bottles)
+    if np.sqrt(number_of_plots)-round(np.sqrt(number_of_plots)) < 0:
+        nrow = math.ceil(np.sqrt(number_of_plots))
+        ncol = nrow
+        #if np.sqrt(pop_count)-round(np.sqrt(pop_count)) >= 0:
+    else:
+        nrow = math.floor(np.sqrt(number_of_plots))
+        ncol = math.ceil(np.sqrt(number_of_plots))
+    fig, axs = plt.subplots(nrows = nrow, ncols = ncol, figsize = (20,20))
+    axs = axs.flatten()
+    for b,ax in zip(bottles, axs):
+        means = np.mean(dataframe[b]['language'], axis = 0)
+        stds = np.std(dataframe[b]['language'], axis = 0)/np.sqrt(iterations)
+        for t in range(4):
+            mean = [m[t] for m in means]
+            err = [e[t] for e in stds]
+            ax.errorbar(range(generations), 
+                            mean,
+                            yerr = err,
+                            color = config.plotting_params.colors[t],
+                            #label = meanings[t],
+                            fmt = '',
+                            alpha = 0.2,
+                            )
+            ax.plot(range(generations),
+                        mean,
+                        color = config.plotting_params.colors[t],
+                        label = meanings[t],
+                        marker = '.',
+                     )
+        ax.set_title(f'b={b}')
+    if len(axs)>len(bottles):
+        fig.delaxes(axs[-1])
+    axs[0].set_xlabel('Generations')
+    axs[0].set_ylabel('Posterior')
+    handles, labels = ax.get_legend_handles_labels()
+    fig.legend(handles=handles,ncol=len(labels),loc="lower center", bbox_to_anchor=(0.5,-0.07), fontsize = 10)
+    plt.tight_layout()
     plt.show()
 
 # %%
@@ -136,5 +167,5 @@ dataframe = get_stats(dataframe)
 plot_proportions(dataframe)
 #plot_signals(dataframe)
 #%%
-#plot_signal_evolution(dataframe, b=50)
+plot_signal_evolution(dataframe, repeat = 20)
 # %%
