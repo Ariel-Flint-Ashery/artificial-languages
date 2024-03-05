@@ -1,12 +1,9 @@
+#%%
 import numpy as np
 from utils import normalize_logprobs, normalize_probs, log_roulette_wheel, get_init_language
 from CRP import incremental_CRP, CRP_process
 from math import log, exp
 from scipy.special import logsumexp
-from multiprocessing import Process, Queue #, Pipe
-import time
-import queue # imported for using queue.Empty exception
-from itertools import cycle
 import random
 import yaml
 from munch import munchify
@@ -102,7 +99,7 @@ def iterate(prior, bottleneck):
     results = []
     #population = [] #new_population(prior)
     # train the initial population on the seed language
-    data_to_learn = list(random.choices(seed_language), k = 2*bottleneck)
+    data_to_learn = list(random.choices(seed_language, k = 2*bottleneck))
     population = run_inference(prior, data_to_learn)
     results = language_stats(population)
 
@@ -113,3 +110,4 @@ def iterate(prior, bottleneck):
         #population = [prior] + population[:-1] # remove the oldest and add a newborn learner
                        
     return results
+# %%

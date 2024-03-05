@@ -53,28 +53,31 @@ def CRP_process(base, alpha, data, training_rounds):
     #clusters = {0: [data[0]]}
     clusters = defaultdict(list)
     clusters[0] = [data[0]]
-    languages = {0: language_assignment(base, clusters[0], data)}
-
+    languages = {0: possible_languages[language_assignment(base, clusters[0], data)]}
+    #print(list(clusters.keys()))
+    # for i in list(clusters.keys()):
+    #     print(languages[i])
+    #     print(len(clusters[i]))
     for d in range(1,n):
         word = data[d] # choose new word
         # assign to cluster
         prob_new_cluster = log(alpha) + logsumexp([base[i]+probability_word_in_language(word, language) for i, language in enumerate(possible_languages)]) # probability of creating a new cluster
-        prob_clusters = [log(len(clusters[i])*probability_word_in_language(word, languages[i])) for i in clusters.keys()] # probability of joining an existing cluster is proportional to its size
+        prob_clusters = [log(len(clusters[i]))+probability_word_in_language(word, languages[i]) for i in list(clusters.keys())] # probability of joining an existing cluster is proportional to its size
         normedlogs = normalize_logprobs(prob_clusters+[prob_new_cluster]) # normalise cluster probability distribution
         cluster_idx = log_roulette_wheel(normedlogs) # choose an existing cluster, or create a new one
         clusters[cluster_idx].append(word) # finally, we can add word to cluster
-        languages[cluster_idx] = language_assignment(base, clusters[cluster_idx], data) # assign language to cluster based on its new and existing members
+        languages[cluster_idx] = possible_languages[language_assignment(base, clusters[cluster_idx], data)] # assign language to cluster based on its new and existing members
 
     # repeat to 'burn in' Gibbs sampling process
     for it in range(training_rounds-1):
             for d in range(n):
                 word = data[d]
                 prob_new_cluster = log(alpha) + logsumexp([base[i]+probability_word_in_language(word, language) for i, language in enumerate(possible_languages)])
-                prob_clusters = [log(len(clusters[i])*probability_word_in_language(word, languages[i])) for i in clusters.keys()]
+                prob_clusters = [log(len(clusters[i]))+probability_word_in_language(word, languages[i]) for i in clusters.keys()]
                 normedlogs = normalize_logprobs(prob_clusters+[prob_new_cluster])
                 cluster_idx = log_roulette_wheel(normedlogs)
                 clusters[cluster_idx].append(word)
-                languages[cluster_idx] = language_assignment(base, clusters[cluster_idx], data)
+                languages[cluster_idx] = possible_languages[language_assignment(base, clusters[cluster_idx], data)]
     
     # do inference
     distribution = []
@@ -90,3 +93,4 @@ def incremental_CRP(base, alpha, data, training_rounds):
     for i in range(len(data)):
         subset = data[:i+1]
         posterior = CRP_process(posterior, alpha, subset, training_rounds)
+# %%

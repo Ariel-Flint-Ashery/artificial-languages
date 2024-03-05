@@ -201,15 +201,15 @@ constants:
   - 198
   - 199
   - 200
-  continual_learning: true
+  incremental_learning: False
   degree: 4
   epsilon: 0.05
-  expressivity: 20
-  generations: 800
+  expressivity: 0
+  generations: 10000
   initial_language: 1
   initial_population: false
-  iterations: 10
-  pop_size: 10
+  iterations: 64
+  pop_size: 5
   seed: 123
   signaller_type: learner
   training_rounds: 20
@@ -1540,7 +1540,7 @@ language:
   - bb
   vocabulary_size: 2
   word_size: 2
-model: one_pass
+model: mixed_population
 plotting_params:
   colors:
   - r
@@ -1559,4 +1559,4 @@ prior_constants:
   - 0
   - 0
   - 0.001
-  prior_type: compressible
+  prior_type: weak

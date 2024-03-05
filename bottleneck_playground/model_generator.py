@@ -71,6 +71,8 @@ if model == 'mixed_population':
     import module_mixed_population as ilm
 if model == 'mixed_networked_population':
     import module_mixed_networked_population as ilm
+if model == 'CRP':
+    import module_burkett as ilm
 #%% INITALISE PRIOR
 prior = get_prior()
 plot_prior(prior)
