@@ -13,7 +13,7 @@ with open("config.yaml", "r") as f:
     doc = yaml.safe_load(f)
 config = munchify(doc)
 
-def file_id(name, pkl = True, directory = None):
+def file_id(name, folder, directory = None):
     """
     Returns:
         Returns the file name with all the relevant directories
@@ -24,13 +24,11 @@ def file_id(name, pkl = True, directory = None):
         directory = dir_path
     else:
         directory = directory
-    if pkl == True:
-        pkl = 'pkl'
-    else:
-        pkl = pkl
     __file_name = f'{name}'
     _file_name = str(__file_name).replace(' ', '-').replace(',', '').replace('[', '-').replace(']','-').replace('.','-')
-    file_name = os.path.join(directory, 'ILM_data_files', f'{_file_name}.pkl')
+    __folder_name = f'{folder}'
+    _folder_name = str(__folder_name).replace(' ', '-').replace(',', '').replace('[', '-').replace(']','-').replace('.','-')
+    file_name = os.path.join(directory, 'ILM_data_files', f'{_folder_name}_{_file_name}.npy')
     return file_name
 #%% READ CONSTANTS FROM CONFIG
 possible_languages = config.language.possible_languages
@@ -48,13 +46,26 @@ model = config.model
 initial_language = config.constants.initial_language
 if type(initial_language) != int:
     initial_language= '-'.join(str(int(x*100)) for x in initial_language)
-fname = '_'.join(str(x) for x in (model, prior_type, expressivity, MAP, generations, iterations, initial_language))
+foldername = '_'.join(str(x) for x in (model, prior_type, expressivity, MAP, generations, iterations, initial_language))
 #%% LOAD DATAFILE
 #fname = ''
-try:
-    dataframe = pickle.load(open(f'{file_id(fname)}', 'rb'))
-except:
-    raise ValueError('NO DATAFILE FOUND')
+# try:
+#     dataframe = pickle.load(open(f'{file_id(fname)}', 'rb'))
+# except:
+#     raise ValueError('NO DATAFILE FOUND')
+dataframe = {b: {} for b in bottlerange}
+with open(f"{file_id(name='language', folder=foldername)}", 'rb') as f:
+    for b in bottlerange:
+        dataframe[b]['language'] = np.array([np.load(f) for i in range(iterations)])
+
+with open(f"{file_id(name='signals', folder=foldername)}", 'rb') as f:
+    for b in bottlerange:
+        dataframe[b]['signals'] = np.array([np.load(f) for i in range(iterations)])
+
+with open(f"{file_id(name='posterior', folder=foldername)}", 'rb') as f:
+    for b in bottlerange:
+        dataframe[b]['posterior'] = np.array([np.load(f) for i in range(iterations)])
+
 #%%
 
 # def get_stats(dataframe):
