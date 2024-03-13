@@ -14,7 +14,7 @@ with open("config.yaml", "r") as f:
     doc = yaml.safe_load(f)
 config = munchify(doc)
 
-def file_id(name, pkl = True, directory = None):
+def file_id(name, folder, directory = None):
     """
     Returns:
         Returns the file name with all the relevant directories
@@ -25,13 +25,11 @@ def file_id(name, pkl = True, directory = None):
         directory = dir_path
     else:
         directory = directory
-    if pkl == True:
-        pkl = 'pkl'
-    else:
-        pkl = pkl
     __file_name = f'{name}'
     _file_name = str(__file_name).replace(' ', '-').replace(',', '').replace('[', '-').replace(']','-').replace('.','-')
-    file_name = os.path.join(directory, 'ILM_data_files', f'{_file_name}.pkl')
+    __folder_name = f'{folder}'
+    _folder_name = str(__folder_name).replace(' ', '-').replace(',', '').replace('[', '-').replace(']','-').replace('.','-')
+    file_name = os.path.join(directory, 'ILM_data_files', f'{_folder_name}_{_file_name}.npy')
     return file_name
 
 #%% READ CONSTANTS FROM CONFIG
@@ -61,7 +59,7 @@ print(f"""
       initial language composition: {initial_language_name}
       -----------------------------------------------
       """) 
-fname = '_'.join(str(x) for x in (model, prior_type, expressivity, MAP, generations, iterations, initial_language_name))
+foldername = '_'.join(str(x) for x in (model, prior_type, expressivity, MAP, generations, iterations, initial_language_name))
 #%% GET MODEL
 if model == 'one_pass':
     import module_one_pass as ilm
@@ -116,21 +114,23 @@ print('Time elapsed: %s'% (time.perf_counter()-start))
 
 # print('Time elapsed: %s'% (time.perf_counter()-start))
 # CONFIGURE DATAFRAME
-dataframe = {b: {} for b in bottlerange}
-left=0
-for b in bottlerange:
-    #raw = sim[left:left+iterations]
-    #dataframe[b]['language_type'] = [lang for lang, _ in raw]
-    #dataframe[b]['posterior'] = [post for _, post in raw]
-    dataframe[b]['language'] = simulation_results[left:left+iterations]#[0]
-    #dataframe[b]['signals'] = simulation_results[left:left+iterations][1]
-    #dataframe[b]['signals_std'] = simulation_results[left:left+iterations][1][1]
-    left+=iterations
 
-# Save file
-f = open(f'{file_id(fname)}', 'wb')
-pickle.dump(dataframe, f)
-f.close()
+# Save files 
+with open(f"{file_id(name='language', folder=foldername)}", 'wb') as f:
+    for sim in simulation_results:
+            np.save(f, sim[0])
+
+with open(f"{file_id(name='signals', folder=foldername)}", 'wb') as f:
+    for sim in simulation_results:
+            np.save(f, sim[1])
+
+with open(f"{file_id(name='posterior', folder=foldername)}", 'wb') as f:
+    for sim in simulation_results:
+            np.save(f, sim[2])
+
+# f = open(f'{file_id(name=fname, folder=foldername)}', 'wb')
+# pickle.dump(dataframe, f)
+# f.close()
 
 
 # %%

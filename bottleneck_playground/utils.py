@@ -109,7 +109,7 @@ def count_ambiguous_languages(possible_languages, signals):
     return count
 
 def get_init_language(language, language_type):
-    probs = (np.ones(len(language_type))*np.inf).tolist() #np.zeros(len(language_type)).tolist()
+    probs = (np.ones(len(language_type))*-np.inf).tolist() #np.zeros(len(language_type)).tolist()
     if type(language) == int:
         indices = np.where(np.array(language_type)==language)[0]
         for index in indices:

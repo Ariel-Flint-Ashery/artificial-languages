@@ -94,40 +94,42 @@ def produce(population, bottleneck, expressivity=0, MAP = False):
             other_signals = [s for s in signals if s != signal]
             signal = random.choice(other_signals)
         data.append([meaning, signal])
-    return data#, signal_dict
+    return data, signal_dict
 
 def do_continual_learning(prior, population, bottleneck):
     #data = list(map(produce, [population]*bottleneck))
     #data = get_data(population, bottleneck)
-    data = produce(population, bottleneck, expressivity = expressivity, MAP = MAP)
-    return update_posterior(data, prior)#, signal_dict
+    data, signal_dict_result = produce(population, bottleneck, expressivity = expressivity, MAP = MAP)
+    return update_posterior(data, prior), signal_dict_result
 
 def language_stats(posteriors):
     stats = [0., 0., 0., 0.] # degenerate, holistic, other, combinatorial
     for p in posteriors:
-        #print(sum([exp(prob) for prob in p]))
-        p = np.exp(p)  / len(posteriors) #np.exp(normalize_logprobs(p))  / len(posteriors)
+        p = np.exp(p)  / len(posteriors) 
         for i in range(len(p)):
             stats[language_type[i]] += p[i]
     return stats
 
 def signal_stats(signal_dict):
-    values = np.exp(list(signal_dict.values()))
-    return np.mean(values, axis = 0)#, np.std(values, axis = 0)/np.sqrt(len(values))
+    stats = [[0]*len(signals)]*len(meanings)
+    for idx, m in enumerate(signal_dict.keys()):
+        stats[idx] = np.exp(signal_dict[m])
+    return np.array(stats)/np.sum(stats)
 
 def iterate(prior, bottleneck):
-    posterior = do_continual_learning(prior, population= get_init_language(language=initial_language, language_type=language_type), bottleneck=bottleneck)
+    posterior, signal_dict_result = do_continual_learning(prior, population= get_init_language(language=initial_language, language_type=language_type), bottleneck=bottleneck)
+    #print(signal_dict_result)
     # iterate across generations
     language_results = [language_stats([posterior])]
-    #signal_results = [signal_stats(signal_dict)]
-    for generation in range(generations-1):
-        # if baby_talk == True:
-        #     posterior = do_continual_learning(prior, population= get_init_language(language=initial_language, language_type=language_type, possible_languages=possible_languages), bottleneck=training_rounds)
-        posterior = do_continual_learning(prior=prior, population=posterior, bottleneck=bottleneck)
+    signal_results = [signal_stats(signal_dict_result)]
+    posterior_accumulator = [posterior]
+    for generation in range(generations):
+        posterior, signal_dict_result = do_continual_learning(prior=prior, population=posterior, bottleneck=bottleneck)
         language_results.append(language_stats([posterior]))
-        #signal_results.append(signal_stats(signal_dict))
+        posterior_accumulator.append(posterior)
+        signal_results.append(signal_stats(signal_dict_result))
 
-    return language_results#, signal_results  #language_accumulator, posterior_accumulator, data_accumulator
+    return [np.array(language_results), np.array(signal_results), np.exp(posterior_accumulator)]
 #%%
 # def signalling(posterior, meaning, expressivity=0, MAP=False):
 #     signal_probs = []
