@@ -101,13 +101,13 @@ def iterate(prior, bottleneck):
     # train the initial population on the seed language
     data_to_learn = list(random.choices(seed_language, k = 2*bottleneck))
     population = run_inference(prior, data_to_learn)
-    results = language_stats(population)
+    results = [language_stats(population)]
 
     for i in range(generations):
         data_to_learn = produce(population, bottleneck, expressivity=expressivity, MAP=MAP)
         population = run_inference(prior, data_to_learn)
-        results = np.vstack((results, language_stats(population)))
+        results.append(language_stats(population))
         #population = [prior] + population[:-1] # remove the oldest and add a newborn learner
                        
-    return results
+    return np.array(results)
 # %%

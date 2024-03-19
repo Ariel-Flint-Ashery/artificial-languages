@@ -58,13 +58,13 @@ with open(f"{file_id(name='language', folder=foldername)}", 'rb') as f:
     for b in bottlerange:
         dataframe[b]['language'] = np.array([np.load(f) for i in range(iterations)])
 
-with open(f"{file_id(name='signals', folder=foldername)}", 'rb') as f:
-    for b in bottlerange:
-        dataframe[b]['signals'] = np.array([np.load(f) for i in range(iterations)])
+# with open(f"{file_id(name='signals', folder=foldername)}", 'rb') as f:
+#     for b in bottlerange:
+#         dataframe[b]['signals'] = np.array([np.load(f) for i in range(36)])
 
-with open(f"{file_id(name='posterior', folder=foldername)}", 'rb') as f:
-    for b in bottlerange:
-        dataframe[b]['posterior'] = np.array([np.load(f) for i in range(iterations)])
+# with open(f"{file_id(name='posterior', folder=foldername)}", 'rb') as f:
+#     for b in bottlerange:
+#         dataframe[b]['posterior'] = np.array([np.load(f) for i in range(iterations)])
 
 #%%
 
@@ -118,20 +118,8 @@ def plot_proportions(dataframe):
     plt.ylabel('Final Proportion (%s gens.)' % (generations))
     plt.show()
 
-def plot_signals(dataframe):
-    for t in range(4):
-        plt.errorbar(range(len(dataframe.keys())), [dataframe[b]['average_signal_evolution'][-1][t] for b in dataframe.keys()],
-                        yerr = [dataframe[b]['error_signal_evolution'][-1][t] for b in dataframe.keys()],
-                        color = config.plotting_params.colors[t], label = meanings[t],
-                        fmt = '.',
-                        )
-    plt.legend()
-    plt.xlabel('Bottleneck Size')
-    plt.ylabel('Final Signal Proportion (%s gens.)' % (generations))
-    plt.show()
-
-def plot_signal_evolution(dataframe, repeat=10):
-    bottles = sorted(set(list(dataframe.keys())[:30]))#+[b for b in dataframe.keys() if b % repeat==0]))
+def plot_proportion_evolution(dataframe, repeat=10):
+    bottles = sorted(set(list(dataframe.keys())[20:60]))#+[b for b in dataframe.keys() if b % repeat==0]))
     number_of_plots = len(bottles)
     if np.sqrt(number_of_plots)-round(np.sqrt(number_of_plots)) < 0:
         nrow = math.ceil(np.sqrt(number_of_plots))
@@ -178,5 +166,35 @@ dataframe = get_stats(dataframe)
 plot_proportions(dataframe)
 #plot_signals(dataframe)
 #%%
-plot_signal_evolution(dataframe, repeat = 20)
+plot_proportion_evolution(dataframe, repeat = 20)
 # %%
+with open(f"{file_id(name='signals', folder=foldername)}", 'rb') as f:
+    for b in bottlerange:
+        dataframe[b]['signals'] = np.array([np.load(f) for i in range(iterations)])
+
+#%%
+def plot_signals(dataframe):
+    bottles = sorted(set(list(dataframe.keys())[20:]))#+[b for b in dataframe.keys() if b % repeat==0]))
+    number_of_plots = len(bottles)
+    if np.sqrt(number_of_plots)-round(np.sqrt(number_of_plots)) < 0:
+        nrow = math.ceil(np.sqrt(number_of_plots))
+        ncol = nrow
+        #if np.sqrt(pop_count)-round(np.sqrt(pop_count)) >= 0:
+    else:
+        nrow = math.floor(np.sqrt(number_of_plots))
+        ncol = math.ceil(np.sqrt(number_of_plots))
+    fig, axs = plt.subplots(nrows = nrow, ncols = ncol, figsize = (20,20))
+    axs = axs.flatten()
+    #vmax = np.max([np.log(np.mean(dataframe[b]['signals'][10], axis=0)) for b in bottles])
+    #vmin = np.min([np.log(np.mean(dataframe[b]['signals'][10], axis=0)) for b in bottles])
+    for b,ax in zip(bottles, axs):
+        means = np.log(dataframe[b]['signals'][10][-1]) #np.log(np.mean(dataframe[b]['signals'][10], axis=0))
+
+        ax.imshow(means, cmap = 'Reds', vmin = np.min(means), vmax = np.max(means))
+    plt.legend()
+    plt.xlabel('Bottleneck Size')
+    plt.ylabel('Final Signal Proportion (%s gens.)' % (generations))
+    plt.show()
+# %%
+plot_signals(dataframe)
+ # %%
